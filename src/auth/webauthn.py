@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, HTTPException, Request
 from webauthn import (
@@ -167,6 +170,12 @@ async def authenticate(request: Request):
             credential_current_sign_count=stored["sign_count"],
         )
     except Exception as exc:
+        logger.error(f"WebAuthn auth failed: {exc}")
+        logger.error(f"  credential_id: {credential_id_hex}")
+        logger.error(f"  expected_origin: {_origin()}")
+        logger.error(f"  expected_rp_id: {_rp_id()}")
+        logger.error(f"  client_data origin: {client_data.get('origin', 'N/A')}")
+        logger.error(f"  client_data type: {client_data.get('type', 'N/A')}")
         raise HTTPException(status_code=400, detail=str(exc))
 
     conn = get_db()
