@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     ms_client_id: str = ""
     ms_client_secret: str = ""
     ms_tenant_id: str = ""
+    ms_email: str = ""
+    ms_password: str = ""
     icloud_username: str = ""
     icloud_app_password: str = ""
     google_maps_api_key: str = ""

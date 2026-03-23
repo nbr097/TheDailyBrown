@@ -19,6 +19,8 @@ def mock_env(monkeypatch):
         "API_BEARER_TOKEN": "test-bearer-token",
         "DASHBOARD_DOMAIN": "morning.test.com",
         "CLOUDFLARE_TUNNEL_TOKEN": "test-cf-token",
+        "MS_EMAIL": "",
+        "MS_PASSWORD": "",
     }
     for k, v in env.items():
         monkeypatch.setenv(k, v)

@@ -425,6 +425,34 @@ function buildFlaggedCard(parent, data, maxItems) {
     return card;
 }
 
+// ── Section: Unread Emails Count ──────────────────────────────────
+function addUnreadCount(parent, data) {
+    if (!data.unread_emails || data.unread_emails.length === 0) return null;
+
+    const card = makeCard(parent, { pt: 6, pb: 6, bg: CARD_BG_ALT });
+    const row = card.addStack();
+    row.centerAlignContent();
+
+    sfImg("envelope.fill", 12, TEAL, row);
+    row.addSpacer(6);
+
+    const count = data.unread_emails.length;
+    const t = row.addText(`${count} unread email${count === 1 ? '' : 's'}`);
+    t.font = Font.semiboldSystemFont(12);
+    t.textColor = WHITE;
+
+    row.addSpacer();
+
+    if (data.unread_emails[0] && data.unread_emails[0].from_name) {
+        const preview = row.addText(data.unread_emails[0].from_name);
+        preview.font = Font.regularSystemFont(10);
+        preview.textColor = TEXT_MUTED;
+        preview.lineLimit = 1;
+    }
+
+    return card;
+}
+
 // ── Medium Widget ──────────────────────────────────────────────────
 function buildMediumWidget(data) {
     const w = new ListWidget();
@@ -524,6 +552,9 @@ function buildLargeWidget(data) {
             buildFlaggedCard(bottomRow, data, 3);
         }
     }
+
+    // ── Unread emails count ──
+    addUnreadCount(w, data);
 
     w.addSpacer();
     return w;
