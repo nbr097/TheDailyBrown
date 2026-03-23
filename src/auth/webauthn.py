@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import time
@@ -79,10 +80,6 @@ async def register_options():
 async def register(request: Request):
     body = await request.json()
 
-    # Find matching challenge from the credential's clientDataJSON
-    # The webauthn library handles challenge matching internally
-    # We just need to verify the challenge was one we issued
-    import base64
     import json as _json
     client_data = _json.loads(base64.urlsafe_b64decode(body["response"]["clientDataJSON"] + "=="))
     challenge_b64 = client_data["challenge"]
@@ -108,7 +105,7 @@ async def register(request: Request):
         "INSERT INTO webauthn_credentials (id, public_key, sign_count, created_at) "
         "VALUES (?, ?, ?, ?)",
         (
-            verification.credential_id.hex(),
+            base64.urlsafe_b64encode(verification.credential_id).rstrip(b"=").decode(),
             verification.credential_public_key,
             verification.sign_count,
             time.time(),
@@ -125,7 +122,7 @@ async def authenticate_options():
     creds = _get_stored_credentials()
 
     allow_credentials = [
-        PublicKeyCredentialDescriptor(id=bytes.fromhex(c["id"])) for c in creds
+        PublicKeyCredentialDescriptor(id=base64.urlsafe_b64decode(c["id"] + "==")) for c in creds
     ]
 
     options = generate_authentication_options(
@@ -143,8 +140,6 @@ async def authenticate_options():
 async def authenticate(request: Request):
     body = await request.json()
 
-    # Extract challenge from clientDataJSON to match against our valid set
-    import base64
     import json as _json
     client_data = _json.loads(base64.urlsafe_b64decode(body["response"]["clientDataJSON"] + "=="))
     challenge_b64 = client_data["challenge"]
@@ -154,17 +149,13 @@ async def authenticate(request: Request):
         raise HTTPException(status_code=400, detail="No authentication in progress")
     _valid_challenges.discard(challenge_bytes)
 
-    # Browser sends credential ID as base64url, DB stores as hex
-    credential_id_b64 = body.get("id", "")
-    try:
-        credential_id_hex = base64.urlsafe_b64decode(credential_id_b64 + "==").hex()
-    except Exception:
-        credential_id_hex = credential_id_b64
+    # Browser sends credential ID as base64url, DB now stores as base64url too
+    credential_id = body.get("id", "")
 
     creds = _get_stored_credentials()
-    stored = next((c for c in creds if c["id"] == credential_id_hex), None)
+    stored = next((c for c in creds if c["id"] == credential_id), None)
     if not stored:
-        logger.error(f"Unknown credential. Browser sent: {credential_id_b64}, converted to hex: {credential_id_hex}")
+        logger.error(f"Unknown credential. Browser sent: {credential_id}")
         logger.error(f"Stored cred IDs: {[c['id'] for c in creds]}")
         raise HTTPException(status_code=400, detail="Unknown credential")
 
