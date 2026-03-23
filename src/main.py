@@ -22,9 +22,10 @@ handler = logging.StreamHandler()
 handler.setFormatter(JSONFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[handler])
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.database import init_db
 from src.auth.webauthn import router as webauthn_router
@@ -51,7 +52,18 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown(wait=False)
 
 
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/dashboard"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+
 app = FastAPI(title="Morning Briefing", docs_url=None, redoc_url=None, lifespan=lifespan)
+app.add_middleware(NoCacheMiddleware)
 app.include_router(admin_router)
 app.include_router(data_router)
 app.include_router(summary_router)
