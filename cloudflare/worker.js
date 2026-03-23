@@ -66,6 +66,7 @@ async function buildEnvString(env) {
 
   for (const entry of ENV_KEYS) {
     let value = await env.SECRETS.get(entry.key);
+    if (value) value = value.trim();
 
     // Auto-generate API_BEARER_TOKEN if missing
     if (entry.key === 'API_BEARER_TOKEN' && !value) {
