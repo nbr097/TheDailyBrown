@@ -104,6 +104,7 @@ async function loadDashboard() {
         renderNews(data.news);
         renderReminders(data.reminders);
         renderFlaggedEmails(data.flagged_emails);
+        renderUnreadEmails(data.unread_emails);
 
         // Also load admin health
         loadHealth();
@@ -344,6 +345,39 @@ function renderReminders(reminders) {
     `).join('');
 }
 
+// ---------- Render: Unread Emails ----------
+
+function renderUnreadEmails(emails) {
+    const card = document.getElementById('unread-emails-card');
+    const el = document.getElementById('unread-emails-content');
+    const badge = document.getElementById('unread-count-badge');
+
+    if (!emails || !emails.length) {
+        card.classList.add('hidden');
+        return;
+    }
+
+    card.classList.remove('hidden');
+    badge.textContent = emails.length;
+
+    const maxShow = 10;
+    const shown = emails.slice(0, maxShow);
+    el.innerHTML = shown.map(e => `
+        <div class="flex items-start gap-2 text-sm">
+            <i class="ph ph-envelope-simple text-indigo-400 mt-0.5"></i>
+            <div class="min-w-0">
+                <span class="text-slate-200 font-medium">${e.from_name || ''}</span>
+                <span class="text-slate-400 mx-1">—</span>
+                <span class="text-slate-300">${e.subject || ''}</span>
+            </div>
+        </div>
+    `).join('');
+
+    if (emails.length > maxShow) {
+        el.innerHTML += `<p class="text-xs text-slate-500 mt-1">and ${emails.length - maxShow} more...</p>`;
+    }
+}
+
 // ---------- Render: Flagged Emails ----------
 
 function renderFlaggedEmails(emails) {
@@ -357,7 +391,7 @@ function renderFlaggedEmails(emails) {
             <i class="ph ph-flag text-red-400 mt-0.5"></i>
             <div>
                 <p class="text-slate-300">${e.subject || e.title || ''}</p>
-                <p class="text-xs text-slate-500">${e.from || e.sender || ''}</p>
+                <p class="text-xs text-slate-500">${e.from_name || ''}</p>
             </div>
         </div>
     `).join('');
