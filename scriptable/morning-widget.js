@@ -88,11 +88,12 @@ function buildMediumWidget(data) {
     w.addSpacer(6);
 
     // Weather row
-    if (data.weather && !data.weather.error) {
+    const wc = data.weather ? data.weather.current : null;
+    if (wc && !data.weather.error) {
         const weatherRow = w.addStack();
         weatherRow.centerAlignContent();
 
-        const sfName = weatherSymbol(data.weather.condition);
+        const sfName = weatherSymbol(wc.condition);
         const sym = SFSymbol.named(sfName);
         if (sym) {
             const img = weatherRow.addImage(sym.image);
@@ -102,7 +103,7 @@ function buildMediumWidget(data) {
         }
 
         const tempText = weatherRow.addText(
-            `${Math.round(data.weather.temp_f || data.weather.temp || 0)}°`
+            `${Math.round(wc.temp || 0)}°`
         );
         tempText.font = Font.boldSystemFont(24);
         tempText.textColor = TEXT_PRIMARY;
@@ -110,15 +111,15 @@ function buildMediumWidget(data) {
         weatherRow.addSpacer(8);
 
         const condText = weatherRow.addText(
-            data.weather.description || data.weather.condition || ""
+            wc.description || wc.condition || ""
         );
         condText.font = Font.regularSystemFont(14);
         condText.textColor = TEXT_SECONDARY;
 
-        if (data.weather.precipitation_pct != null) {
+        if (wc.humidity != null) {
             weatherRow.addSpacer(8);
             const precip = weatherRow.addText(
-                `💧${data.weather.precipitation_pct}%`
+                `${wc.humidity}%`
             );
             precip.font = Font.regularSystemFont(12);
             precip.textColor = TEXT_SECONDARY;
@@ -146,7 +147,7 @@ function buildMediumWidget(data) {
     if (data.commute && data.commute.leave_by) {
         const commuteRow = w.addStack();
         const leaveText = commuteRow.addText(
-            `Leave by ${formatTime(data.commute.leave_by)}`
+            `Leave by ${data.commute.leave_by} — ${data.commute.duration_text || ''}`
         );
         leaveText.font = Font.regularSystemFont(12);
         leaveText.textColor = TEXT_SECONDARY;
@@ -236,9 +237,10 @@ async function sendNotification(data) {
     n.title = "Morning Briefing";
     n.subtitle = "Your morning briefing is ready";
 
-    if (data && data.weather && !data.weather.error) {
-        const temp = Math.round(data.weather.temp_f || data.weather.temp || 0);
-        const desc = data.weather.description || data.weather.condition || "";
+    const nc = data && data.weather ? data.weather.current : null;
+    if (nc && !data.weather.error) {
+        const temp = Math.round(nc.temp || 0);
+        const desc = nc.description || nc.condition || "";
         n.body = `${temp}° ${desc}`;
         if (data.calendar && data.calendar.length > 0) {
             const ev = data.calendar[0];
