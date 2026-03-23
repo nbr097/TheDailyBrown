@@ -1308,14 +1308,20 @@ class RemindersPayload(BaseModel):
 
 # In-memory store, refreshed daily by iOS Shortcut push
 _stored_reminders: list[dict] = []
+_last_push: str | None = None
 
 def store_reminders(reminders: list[Reminder]) -> int:
-    global _stored_reminders
+    global _stored_reminders, _last_push
+    from datetime import datetime
     _stored_reminders = [r.model_dump() for r in reminders]
+    _last_push = datetime.now().isoformat()
     return len(_stored_reminders)
 
 def get_reminders() -> list[dict]:
     return _stored_reminders
+
+def get_reminders_last_push() -> str | None:
+    return _last_push
 ```
 
 ```python
@@ -1440,6 +1446,29 @@ _cache: dict = {
     "errors": {},
 }
 
+# Per-system health tracking
+_system_health: dict = {
+    "openweathermap": {"status": "unknown", "last_check": None, "error": None},
+    "microsoft_graph": {"status": "unknown", "last_check": None, "error": None},
+    "icloud_caldav": {"status": "unknown", "last_check": None, "error": None},
+    "icloud_carddav": {"status": "unknown", "last_check": None, "error": None},
+    "google_maps": {"status": "unknown", "last_check": None, "error": None},
+    "rss_feeds": {"status": "unknown", "last_check": None, "error": None},
+    "ios_reminders_push": {"status": "unknown", "last_check": None, "error": None},
+    "cloudflare_tunnel": {"status": "unknown", "last_check": None, "error": None},
+    "docker_updater": {"status": "unknown", "last_check": None, "error": None},
+}
+
+def _update_system_status(system: str, success: bool, error: str | None = None):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    tz = ZoneInfo(settings.timezone)
+    _system_health[system] = {
+        "status": "healthy" if success else "error",
+        "last_check": datetime.now(tz).isoformat(),
+        "error": error,
+    }
+
 def get_cached_calendar() -> list:
     return _cache["calendar"]
 
@@ -1459,6 +1488,41 @@ def get_cached_reminders() -> list:
 def get_cache_status() -> dict:
     return {"last_run": _cache["last_run"], "errors": _cache["errors"]}
 
+def get_system_health() -> dict:
+    """Detailed health of all systems powering the morning briefing."""
+    import socket
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    tz = ZoneInfo(settings.timezone)
+
+    # Check updater sidecar connectivity
+    try:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        sock.connect("/tmp/updater.sock")
+        sock.close()
+        _system_health["docker_updater"]["status"] = "healthy"
+    except Exception:
+        _system_health["docker_updater"]["status"] = "unreachable"
+
+    # Check reminders push recency (healthy if data received in last 26 hours)
+    from src.collectors.reminders import get_reminders_last_push
+    last_push = get_reminders_last_push()
+    if last_push:
+        _system_health["ios_reminders_push"]["status"] = "healthy"
+        _system_health["ios_reminders_push"]["last_check"] = last_push
+    else:
+        _system_health["ios_reminders_push"]["status"] = "no data received yet"
+
+    all_healthy = all(s["status"] == "healthy" for s in _system_health.values())
+
+    return {
+        "status": "healthy" if all_healthy else "degraded",
+        "timestamp": datetime.now(tz).isoformat(),
+        "last_cache_run": _cache["last_run"],
+        "systems": _system_health,
+    }
+
 async def run_cache_job():
     from datetime import datetime
     from zoneinfo import ZoneInfo
@@ -1474,34 +1538,44 @@ async def run_cache_job():
 
     try:
         outlook_cal = await fetch_outlook_calendar()
+        _update_system_status("microsoft_graph", True)
     except Exception as e:
         outlook_cal = _cache["calendar"]  # Keep stale
         errors["outlook_calendar"] = str(e)
+        _update_system_status("microsoft_graph", False, str(e))
         logger.error(f"Outlook calendar failed: {e}")
 
     try:
         icloud_cal = await fetch_icloud_calendar()
+        _update_system_status("icloud_caldav", True)
     except Exception as e:
         icloud_cal = []
         errors["icloud_calendar"] = str(e)
+        _update_system_status("icloud_caldav", False, str(e))
         logger.error(f"iCloud calendar failed: {e}")
 
     try:
         _cache["birthdays"] = await fetch_todays_birthdays()
+        _update_system_status("icloud_carddav", True)
     except Exception as e:
         errors["birthdays"] = str(e)
+        _update_system_status("icloud_carddav", False, str(e))
         logger.error(f"Birthdays failed: {e}")
 
     try:
         _cache["news"] = await fetch_news()
+        _update_system_status("rss_feeds", True)
     except Exception as e:
         errors["news"] = str(e)
+        _update_system_status("rss_feeds", False, str(e))
         logger.error(f"News failed: {e}")
 
     try:
         _cache["flagged_emails"] = await fetch_flagged_emails()
+        # microsoft_graph already updated above — this confirms emails work too
     except Exception as e:
         errors["flagged_emails"] = str(e)
+        _update_system_status("microsoft_graph", False, str(e))
         logger.error(f"Flagged emails failed: {e}")
 
     # Merge calendars and sort by start time
@@ -1532,7 +1606,7 @@ from src.auth.bearer import verify_bearer
 from src.collectors.weather import fetch_weather
 from src.collectors.commute import fetch_commute
 from src.cache import location_cache, TTLCache
-from src.scheduler import get_cached_calendar, get_cached_birthdays, get_cached_news, get_cached_reminders, get_cached_flagged
+from src.scheduler import get_cached_calendar, get_cached_birthdays, get_cached_news, get_cached_reminders, get_cached_flagged, _update_system_status
 
 router = APIRouter()
 
@@ -1546,21 +1620,31 @@ async def get_summary(
     weather_key = TTLCache.coord_key("weather", lat, lon)
     weather = location_cache.get(weather_key)
     if weather is None:
-        weather = await fetch_weather(lat, lon)
-        location_cache.set(weather_key, weather)
+        try:
+            weather = await fetch_weather(lat, lon)
+            location_cache.set(weather_key, weather)
+            _update_system_status("openweathermap", True)
+        except Exception as e:
+            weather = {"current": {}, "hourly": [], "error": str(e)}
+            _update_system_status("openweathermap", False, str(e))
 
     # Commute with TTL cache
     commute_key = TTLCache.coord_key("commute", lat, lon)
     commute = location_cache.get(commute_key)
     if commute is None:
-        calendar = get_cached_calendar()
-        first_meeting_time = None
-        if calendar:
-            # Extract HH:MM from first event
-            start = calendar[0]["start"]
-            first_meeting_time = start[11:16] if len(start) > 16 else None
-        commute = await fetch_commute(lat, lon, first_meeting_time)
-        location_cache.set(commute_key, commute)
+        try:
+            calendar = get_cached_calendar()
+            first_meeting_time = None
+            if calendar:
+                # Extract HH:MM from first event
+                start = calendar[0]["start"]
+                first_meeting_time = start[11:16] if len(start) > 16 else None
+            commute = await fetch_commute(lat, lon, first_meeting_time)
+            location_cache.set(commute_key, commute)
+            _update_system_status("google_maps", True)
+        except Exception as e:
+            commute = {"error": str(e), "duration_text": "N/A", "leave_by": None}
+            _update_system_status("google_maps", False, str(e))
 
     return {
         "weather": weather,
@@ -1604,8 +1688,8 @@ app.include_router(data_router)
 
 @app.get("/health")
 async def health():
-    status = get_cache_status()
-    return {"status": "ok", "cache": status}
+    from src.scheduler import get_system_health
+    return get_system_health()
 ```
 
 - [ ] **Step 6: Run tests, verify passing**
@@ -1637,13 +1721,26 @@ Note: The `/health` endpoint is defined in `src/main.py` (Task 9). No separate `
 from fastapi.testclient import TestClient
 from src.main import app
 
-def test_health_returns_status():
+def test_health_returns_detailed_system_status():
     client = TestClient(app)
     resp = client.get("/health")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["status"] == "ok"
-    assert "cache" in data
+    assert data["status"] in ("healthy", "degraded")
+    assert "systems" in data
+    assert "openweathermap" in data["systems"]
+    assert "microsoft_graph" in data["systems"]
+    assert "icloud_caldav" in data["systems"]
+    assert "icloud_carddav" in data["systems"]
+    assert "google_maps" in data["systems"]
+    assert "rss_feeds" in data["systems"]
+    assert "ios_reminders_push" in data["systems"]
+    assert "docker_updater" in data["systems"]
+    assert "cloudflare_tunnel" in data["systems"]
+    # Each system has status, last_check, error
+    for system in data["systems"].values():
+        assert "status" in system
+        assert "last_check" in system
 ```
 
 Run: `python -m pytest tests/test_routes/test_health.py -v`
@@ -2033,12 +2130,17 @@ Handles:
 - Error state rendering if API unreachable
 - Phosphor icon mapping for weather conditions
 
-- [ ] **Step 3: Create admin.js — Update button with Face ID**
+- [ ] **Step 3: Create admin.js — Update button, Face ID, and system health panel**
 
 Handles:
 - Update button click → trigger WebAuthn authentication (Face ID) → POST `/admin/update`
 - Show loading spinner during update
 - Show success/failure message
+- **System Health Panel:** Fetches `GET /health` and renders a status grid showing all 9 systems:
+  - Each system shows: name, status badge (green `Heartbeat` icon = healthy, amber `Warning` = degraded, red `XCircle` = error), last checked time, error message if any
+  - Systems: OpenWeatherMap, Microsoft Graph, iCloud CalDAV, iCloud CardDAV, Google Maps, RSS Feeds, iOS Reminders Push, Cloudflare Tunnel, Docker Updater
+  - Overall status banner at top: "All Systems Healthy" (green) or "X Systems Degraded" (amber)
+  - Refresh button to re-fetch health status
 
 - [ ] **Step 4: Test in browser manually**
 
