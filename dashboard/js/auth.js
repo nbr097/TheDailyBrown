@@ -43,14 +43,26 @@ window.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // Check if a credential exists server-side
+    const optRes = await fetch('/auth/webauthn/authenticate-options');
+    const options = await optRes.json();
+    const hasCredentials = options.allowCredentials && options.allowCredentials.length > 0;
+
+    if (!hasCredentials) {
+        // No registered credentials — show register button, skip auto-auth
+        authStatus.textContent = '';
+        registerSec.classList.remove('hidden');
+        return;
+    }
+
+    // Credentials exist — try auto-auth
     authStatus.textContent = 'Checking credentials...';
     try {
         await authenticate();
     } catch (err) {
-        // If authenticate fails, maybe no credential — show register
-        console.log('Auto-auth failed, showing options:', err.message);
+        console.log('Auto-auth failed:', err.message);
         authStatus.textContent = '';
-        registerSec.classList.remove('hidden');
+        showAuthError('Authentication verification failed');
     }
 });
 
