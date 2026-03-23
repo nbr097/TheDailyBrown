@@ -32,9 +32,10 @@ Scheduled service runs at 4:00am AEST daily. Collects data from all sources and 
 Serves cached data with dynamic location-aware enrichment:
 - `GET /summary?lat=X&lon=Y` — full briefing as JSON (weather and commute calculated from provided coords)
 - `GET /dashboard` — serves the web dashboard
-- `POST /admin/update` — triggers self-update (pull latest image, restart)
+- `POST /admin/update` — signals the updater sidecar to pull latest image and restart the app container
+- `GET /health` — container status, last cache time, per-source health
 
-Pre-cached data (news, calendars, birthdays, reminders) is served from cache. Location-sensitive data (weather, commute) is fetched/calculated per request using the coordinates sent by the phone.
+Pre-cached data (news, calendars, birthdays, reminders) is served from cache. Location-sensitive data (weather, commute) is fetched/calculated per request using the coordinates sent by the phone. Weather and commute responses are cached with a 10-minute TTL keyed by rounded coordinates to avoid redundant API calls.
 
 **3. Display Layer (two consumers)**
 - **Scriptable widget** — compact home screen widget, taps open the dashboard
@@ -69,7 +70,7 @@ User taps widget → Safari opens morning.<domain>.com → Face ID → full dash
 - Phosphor icons: `Sun`, `Cloud`, `CloudRain`, `Thermometer`, `Drop`, `Wind`
 
 ### Outlook Calendar — Microsoft Graph API
-- OAuth2 with refresh token (initial auth handled by install script)
+- OAuth2 using **device code flow** (Pi is headless — install script displays a code, you authenticate on your phone/laptop at microsoft.com/devicelogin)
 - Pulls today's events: title, time, location, online meeting link
 - Refresh token stored in local SQLite database on Pi
 - Phosphor icons: `CalendarBlank`, `VideoCamera`
@@ -81,8 +82,8 @@ User taps widget → Safari opens morning.<domain>.com → Face ID → full dash
 - Phosphor icon: `CalendarBlank` (color-coded to distinguish from work)
 
 ### Commute — Google Maps Directions API
-- Free tier (sufficient for daily usage)
-- Destination hardcoded: 305 Taylor St, Wilsonton QLD 4350
+- Uses $200/month free credit (one request/day costs ~$0.005/day — well within free credit, but requires a billing-enabled Google Cloud account)
+- Destination from `WORK_ADDRESS` env var (default: 305 Taylor St, Wilsonton QLD 4350)
 - Origin: phone GPS coordinates sent per request
 - Returns drive time with current traffic conditions
 - Calculates "leave by" time: first meeting time minus commute duration
@@ -103,9 +104,10 @@ User taps widget → Safari opens morning.<domain>.com → Face ID → full dash
 - 5-6 articles per category
 - Phosphor icons: `Newspaper`, `Robot`, `FilmSlate`, `Lightning`
 
-### Reminders — Apple Reminders via CalDAV
-- iCloud CalDAV/Reminders endpoint (same auth)
-- Pulls items due today
+### Reminders — iOS Shortcut Push (Fallback-First Approach)
+- Apple Reminders are not reliably accessible via CalDAV (proprietary protocol, progressively locked down)
+- **Primary method:** An iOS Shortcut automation runs daily at 4:00am, fetches today's reminders using the native "Find Reminders" action, and POSTs the data as JSON to the Pi API (`POST /data/reminders`)
+- **Fallback exploration:** During implementation, attempt CalDAV VTODO access via `pyicloud` — if it works reliably, use it instead and retire the Shortcut push
 - Phosphor icon: `CheckSquare`
 
 ### Flagged Emails — Microsoft Graph API
@@ -136,7 +138,9 @@ Medium-size widget. Compact layout:
 
 ### Push Notification
 
-Triggered by iOS Shortcut automation (phone removed from charger or time-based fallback):
+Triggered by iOS Shortcut automation:
+- **Primary trigger:** Phone removed from charger
+- **Fallback trigger:** Time-of-day automation at 6:30am (in case phone wasn't on charger overnight)
 - Title: "Your morning briefing is ready"
 - Subtitle: Weather summary + first meeting
 
@@ -204,6 +208,7 @@ Mobile-first single-page layout. All content in glassmorphism cards. Scrollable,
 - On Safari/iOS, this triggers Face ID natively
 - Credential stored on-device, tied to the domain
 - No passwords
+- **Registration flow:** On first visit (protected by Cloudflare Access), the dashboard presents a one-time setup page to register a WebAuthn credential. Only one credential is allowed. Re-registration requires clearing via the Pi CLI (`./manage.sh reset-webauthn`).
 
 ### API Authentication
 
@@ -234,7 +239,7 @@ The script:
 2. Clones the repository to `~/morning-briefing`
 3. Walks through credential setup interactively:
    - OpenWeatherMap API key
-   - Microsoft 365 OAuth (opens browser for login flow)
+   - Microsoft 365 OAuth via device code flow (displays a code, you authenticate on your phone/laptop at microsoft.com/devicelogin)
    - iCloud app-specific password (for calendar, contacts, reminders)
    - Google Maps API key
    - Cloudflare Tunnel token
@@ -245,9 +250,10 @@ The script:
 
 ### Docker Compose Stack
 
-Two containers:
+Three containers:
 - `morning-briefing` — Python app (FastAPI + APScheduler + dashboard static files)
 - `cloudflared` — Cloudflare Tunnel sidecar
+- `updater` — Lightweight sidecar with Docker socket access. Listens for update requests from the app container via a shared Unix socket. Pulls latest image, recreates the app container, and prunes old images. This solves the problem of a container not being able to restart itself.
 
 ### Updates
 
@@ -327,3 +333,16 @@ CLOUDFLARE_TUNNEL_TOKEN=
 - If the Pi is unreachable, the Scriptable widget shows a "Could not connect" state
 - OAuth token refresh failures trigger a notification (push via Scriptable) prompting re-authentication
 - Dashboard shows per-card staleness indicators when data is older than expected
+
+---
+
+## Operational
+
+### Logging
+- Docker log driver configured with `max-size: 10m` and `max-file: 3` to prevent SD card fill
+- Application logs structured as JSON for easy parsing
+
+### Scriptable Widget Template
+- Provided as `scriptable/morning-widget.js` in the repo
+- Install script prints the file path and instructions for copying to Scriptable
+- Widget code handles: API calls with bearer token, GPS location, error states, tap-to-open URL
