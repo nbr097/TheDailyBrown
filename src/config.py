@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     api_bearer_token: str = ""
     dashboard_domain: str = "morning.localhost"
     cloudflare_tunnel_token: str = ""
+    github_webhook_secret: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

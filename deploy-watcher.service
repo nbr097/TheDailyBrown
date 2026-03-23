@@ -1,0 +1,13 @@
+[Unit]
+Description=TheDailyBrown Deploy Watcher
+After=docker.service
+
+[Service]
+Type=simple
+User=nbrown
+ExecStart=/home/nbrown/TheDailyBrown/deploy-watcher.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

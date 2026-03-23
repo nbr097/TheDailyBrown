@@ -259,11 +259,14 @@ TheDailyBrown/
 │   └── routes/
 │       ├── summary.py        # GET /summary?lat=X&lon=Y
 │       ├── data.py           # POST /data/reminders
-│       └── admin.py          # POST /admin/update
+│       ├── admin.py          # POST /admin/update
+│       └── webhook.py        # POST /webhook/github (auto-deploy)
 ├── dashboard/                # Glassmorphism web UI (Tailwind + Phosphor Icons)
 ├── updater/                  # Docker self-update sidecar
 ├── scriptable/               # iOS Scriptable widget template
 ├── shortcuts/                # iOS Shortcuts + Cloudflare setup guides
+├── deploy-watcher.sh         # Host-level auto-deploy watcher script
+├── deploy-watcher.service    # systemd unit for deploy watcher
 ├── docker-compose.yml        # 3 containers: app, updater, cloudflared
 ├── Dockerfile
 ├── install.sh                # Interactive installer (see Phase 2 notes)
@@ -280,6 +283,7 @@ TheDailyBrown/
 | `POST /admin/update` | Bearer | Trigger Docker self-update |
 | `GET /dashboard/` | WebAuthn | Glassmorphism web dashboard |
 | `GET /auth/webauthn/*` | None | Face ID registration/auth |
+| `POST /webhook/github` | HMAC (optional) | GitHub push auto-deploy trigger |
 
 ### Data Flow
 
@@ -290,6 +294,64 @@ Pi returns   →  Weather + commute (live), everything else (cached)
 Widget       →  Compact view + push notification
 Tap widget   →  Safari → Face ID → full dashboard
 ```
+
+---
+
+## Phase 6: Auto-Deploy via GitHub Webhook (Optional)
+
+Push to GitHub and the Pi automatically pulls and rebuilds. No SSH needed.
+
+### How it works
+
+1. GitHub sends a POST to `https://dashboard.nicholasbrown.me/webhook/github` on every push
+2. The FastAPI webhook endpoint writes a trigger file to `data/deploy-trigger.json`
+3. A systemd service on the Pi host (`deploy-watcher.sh`) polls for that file every 10 seconds
+4. When found, it runs `git pull && docker compose up -d --build`
+
+### Setup steps
+
+**1. Add the webhook on GitHub:**
+- Go to https://github.com/nbr097/TheDailyBrown/settings/hooks
+- Click **Add webhook**
+- Payload URL: `https://dashboard.nicholasbrown.me/webhook/github`
+- Content type: `application/json`
+- Secret: *(optional — must match `GITHUB_WEBHOOK_SECRET` in `.env`)*
+- Events: **Just the push event**
+
+**2. (Optional) Set the webhook secret in `.env`:**
+```bash
+# Generate a secret
+openssl rand -hex 32
+# Add to .env
+echo "GITHUB_WEBHOOK_SECRET=<generated-secret>" >> .env
+docker compose restart morning-briefing
+```
+
+**3. Install the deploy watcher on the Pi host:**
+```bash
+# Copy the service file
+sudo cp ~/TheDailyBrown/deploy-watcher.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable deploy-watcher
+sudo systemctl start deploy-watcher
+
+# Verify it's running
+sudo systemctl status deploy-watcher
+```
+
+**4. Test it:**
+```bash
+# Simulate a trigger
+echo '{"ref":"refs/heads/main","timestamp":0}' > ~/TheDailyBrown/data/deploy-trigger.json
+# Watch the log
+tail -f ~/TheDailyBrown/data/deploy.log
+```
+
+### Key endpoints
+
+| Endpoint | Auth | Purpose |
+|---|---|---|
+| `POST /webhook/github` | HMAC (optional) | Receives GitHub push events |
 
 ---
 
@@ -377,6 +439,7 @@ See `.env.example` for the full list. All variables and their purposes:
 | `API_BEARER_TOKEN` | Yes | API authentication |
 | `DASHBOARD_DOMAIN` | Yes | WebAuthn RP ID + Cloudflare |
 | `CLOUDFLARE_TUNNEL_TOKEN` | No | Cloudflare Tunnel (skip if local only) |
+| `GITHUB_WEBHOOK_SECRET` | No | HMAC secret for GitHub webhook verification |
 | `CACHE_SCHEDULE_HOUR` | No | Default: 4 (4am) |
 | `CACHE_SCHEDULE_MINUTE` | No | Default: 0 |
 | `TIMEZONE` | No | Default: Australia/Brisbane |
