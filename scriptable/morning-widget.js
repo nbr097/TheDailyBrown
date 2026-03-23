@@ -1,4 +1,5 @@
-// Morning Briefing — Scriptable iOS Widget v2
+// Morning Briefing — Scriptable iOS Widget v3
+// Inspired by Weather-Cal & Marco79 card-based layouts
 // ─────────────────────────────────────────
 // 1. Install Scriptable from the App Store
 // 2. Copy this file to iCloud Drive/Scriptable/
@@ -6,22 +7,23 @@
 // 4. Add a Scriptable widget to your Home Screen (medium or large)
 
 // ── Configuration ──────────────────────────────────────────────────
-const API_URL = "https://morning.yourdomain.com"; // your briefing URL
-const BEARER_TOKEN = "YOUR_BEARER_TOKEN_HERE";    // from install.sh output
+const API_URL = "https://morning.yourdomain.com";
+const BEARER_TOKEN = "YOUR_BEARER_TOKEN_HERE";
 const DASHBOARD_URL = `${API_URL}/dashboard/`;
 // ───────────────────────────────────────────────────────────────────
 
 // ── Theme ──────────────────────────────────────────────────────────
-const BG_TOP       = new Color("#0d0d1a");
-const BG_BOTTOM    = new Color("#1a1a2e");
+const CARD_BG     = new Color("#ffffff", 0.07);
+const CARD_BG_ALT = new Color("#ffffff", 0.04);
 const ACCENT       = new Color("#e94560");
-const ACCENT_DIM   = new Color("#e94560", 0.6);
-const TEXT_PRIMARY  = Color.white();
-const TEXT_SECONDARY = new Color("#8b8ba0");
-const TEXT_MUTED    = new Color("#555568");
-const DIVIDER_CLR   = new Color("#ffffff", 0.06);
+const ACCENT_SOFT  = new Color("#e94560", 0.7);
+const TEAL         = new Color("#4ecdc4");
+const WHITE        = Color.white();
+const TEXT_DIM     = new Color("#9999ad");
+const TEXT_MUTED   = new Color("#666680");
+const CARD_RADIUS  = 14;
 
-// ── Helpers ────────────────────────────────────────────────────────
+// ── Data Fetching ──────────────────────────────────────────────────
 async function fetchBriefing() {
     let loc;
     try {
@@ -30,147 +32,175 @@ async function fetchBriefing() {
     } catch {
         loc = { latitude: 0, longitude: 0 };
     }
-
     const url = `${API_URL}/summary?lat=${loc.latitude}&lon=${loc.longitude}`;
     const req = new Request(url);
     req.headers = { Authorization: `Bearer ${BEARER_TOKEN}` };
     req.timeoutInterval = 15;
-
     try {
         const data = await req.loadJSON();
         data._location = loc;
         return data;
-    } catch (e) {
-        return null;
-    }
+    } catch { return null; }
 }
 
-function formatTime(isoString) {
-    if (!isoString) return "";
-    const d = new Date(isoString);
-    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+// ── Utilities ──────────────────────────────────────────────────────
+function fmtTime(iso) {
+    if (!iso) return "";
+    return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function weatherSF(condition) {
-    const map = {
-        Clear: "sun.max.fill",
-        Clouds: "cloud.fill",
-        Rain: "cloud.rain.fill",
-        Drizzle: "cloud.drizzle.fill",
-        Thunderstorm: "cloud.bolt.rain.fill",
-        Snow: "cloud.snow.fill",
-        Mist: "cloud.fog.fill",
-        Fog: "cloud.fog.fill",
-        Haze: "sun.haze.fill",
-    };
-    return map[condition] || "cloud.fill";
-}
-
-function createWidget() {
-    const w = new ListWidget();
-    const gradient = new LinearGradient();
-    gradient.locations = [0, 1];
-    gradient.colors = [BG_TOP, BG_BOTTOM];
-    w.backgroundGradient = gradient;
-    w.url = DASHBOARD_URL;
-    return w;
-}
-
-function addIcon(stack, name, size, color) {
+function sfImg(name, size, color, stack) {
     const sym = SFSymbol.named(name);
-    if (sym) {
-        const img = stack.addImage(sym.image);
-        img.imageSize = new Size(size, size);
-        img.tintColor = color;
-    }
+    if (!sym) return;
+    const img = stack.addImage(sym.image);
+    img.imageSize = new Size(size, size);
+    img.tintColor = color;
 }
 
-function addDivider(w) {
-    w.addSpacer(5);
-    const ctx = new DrawContext();
-    ctx.size = new Size(400, 1);
-    ctx.opaque = false;
-    ctx.setFillColor(DIVIDER_CLR);
-    ctx.fillRect(new Rect(0, 0, 400, 1));
-    const divStack = w.addStack();
-    const img = divStack.addImage(ctx.getImage());
-    img.imageSize = new Size(400, 1);
-    w.addSpacer(5);
+function weatherSF(cond) {
+    return {
+        Clear: "sun.max.fill", Clouds: "cloud.fill", Rain: "cloud.rain.fill",
+        Drizzle: "cloud.drizzle.fill", Thunderstorm: "cloud.bolt.rain.fill",
+        Snow: "cloud.snow.fill", Mist: "cloud.fog.fill", Fog: "cloud.fog.fill",
+        Haze: "sun.haze.fill",
+    }[cond] || "cloud.fill";
 }
 
-// ── Section Builders ───────────────────────────────────────────────
+// ── Card Factory ───────────────────────────────────────────────────
+function makeCard(parent, opts = {}) {
+    const card = parent.addStack();
+    card.layoutVertically();
+    card.backgroundColor = opts.bg || CARD_BG;
+    card.cornerRadius = opts.radius || CARD_RADIUS;
+    card.setPadding(
+        opts.pt || 10, opts.pl || 12,
+        opts.pb || 10, opts.pr || 12
+    );
+    if (opts.url) card.url = opts.url;
+    return card;
+}
 
-function addHeader(w, data) {
+// ── Section: Date Card (left side of top row) ──────────────────────
+function buildDateCard(parent) {
+    const card = makeCard(parent, { pt: 10, pb: 10, pl: 14, pr: 14 });
+
     const now = new Date();
-    const dateStr = now.toLocaleDateString([], {
-        weekday: "long", month: "short", day: "numeric",
-    });
+    const dayNum = now.getDate().toString();
+    const dayName = now.toLocaleDateString([], { weekday: "short" }).toUpperCase();
+    const monthName = now.toLocaleDateString([], { month: "short" }).toUpperCase();
 
-    const header = w.addStack();
-    header.centerAlignContent();
-    const dateText = header.addText(dateStr);
-    dateText.font = Font.boldSystemFont(14);
-    dateText.textColor = TEXT_PRIMARY;
+    const dayLabel = card.addText(dayName);
+    dayLabel.font = Font.boldSystemFont(11);
+    dayLabel.textColor = ACCENT;
 
-    if (data.weather && data.weather.location) {
-        header.addSpacer();
-        const locText = header.addText(data.weather.location);
-        locText.font = Font.regularSystemFont(11);
-        locText.textColor = TEXT_MUTED;
-    }
+    card.addSpacer(2);
+
+    const numLabel = card.addText(dayNum);
+    numLabel.font = Font.boldSystemFont(32);
+    numLabel.textColor = WHITE;
+    numLabel.minimumScaleFactor = 0.8;
+
+    card.addSpacer(1);
+
+    const monthLabel = card.addText(monthName);
+    monthLabel.font = Font.semiboldSystemFont(11);
+    monthLabel.textColor = TEXT_DIM;
+
+    return card;
 }
 
-function addWeather(w, data) {
+// ── Section: Weather Card (right side of top row) ──────────────────
+function buildWeatherCard(parent, data) {
+    const card = makeCard(parent, { pt: 10, pb: 10 });
     const wc = data.weather ? data.weather.current : null;
-    if (!wc || data.weather.error) return;
 
-    const row = w.addStack();
-    row.centerAlignContent();
-
-    addIcon(row, weatherSF(wc.condition), 26, ACCENT);
-    row.addSpacer(8);
-
-    const tempText = row.addText(`${Math.round(wc.temp || 0)}°`);
-    tempText.font = Font.boldSystemFont(30);
-    tempText.textColor = TEXT_PRIMARY;
-
-    row.addSpacer(10);
-
-    const detailCol = row.addStack();
-    detailCol.layoutVertically();
-
-    const condText = detailCol.addText(wc.description || wc.condition || "");
-    condText.font = Font.mediumSystemFont(14);
-    condText.textColor = TEXT_SECONDARY;
-
-    const statsRow = detailCol.addStack();
-    statsRow.spacing = 8;
-    if (wc.humidity != null) {
-        const hum = statsRow.addText(`${wc.humidity}%`);
-        hum.font = Font.regularSystemFont(11);
-        hum.textColor = TEXT_MUTED;
+    if (!wc || data.weather.error) {
+        const t = card.addText("No weather data");
+        t.font = Font.regularSystemFont(12);
+        t.textColor = TEXT_MUTED;
+        return card;
     }
+
+    // Top: icon + temp + description
+    const topRow = card.addStack();
+    topRow.centerAlignContent();
+
+    sfImg(weatherSF(wc.condition), 22, ACCENT, topRow);
+    topRow.addSpacer(8);
+
+    const temp = topRow.addText(`${Math.round(wc.temp || 0)}°`);
+    temp.font = Font.boldSystemFont(26);
+    temp.textColor = WHITE;
+
+    topRow.addSpacer(8);
+
+    const descCol = topRow.addStack();
+    descCol.layoutVertically();
+    const desc = descCol.addText(wc.description || wc.condition || "");
+    desc.font = Font.mediumSystemFont(12);
+    desc.textColor = TEXT_DIM;
+    desc.lineLimit = 1;
+
     if (wc.feels_like != null) {
-        const fl = statsRow.addText(`Feels ${Math.round(wc.feels_like)}°`);
-        fl.font = Font.regularSystemFont(11);
+        const fl = descCol.addText(`Feels ${Math.round(wc.feels_like)}°`);
+        fl.font = Font.regularSystemFont(10);
         fl.textColor = TEXT_MUTED;
     }
+
+    card.addSpacer(4);
+
+    // Bottom: stats row
+    const statsRow = card.addStack();
+    statsRow.centerAlignContent();
+    statsRow.spacing = 12;
+
+    if (wc.humidity != null) {
+        const humStack = statsRow.addStack();
+        humStack.centerAlignContent();
+        sfImg("drop.fill", 10, TEAL, humStack);
+        humStack.addSpacer(3);
+        const h = humStack.addText(`${wc.humidity}%`);
+        h.font = Font.regularSystemFont(10);
+        h.textColor = TEXT_DIM;
+    }
+
+    if (wc.wind_speed != null) {
+        const windStack = statsRow.addStack();
+        windStack.centerAlignContent();
+        sfImg("wind", 10, TEXT_DIM, windStack);
+        windStack.addSpacer(3);
+        const w = windStack.addText(`${Math.round((wc.wind_speed || 0) * 3.6)} km/h`);
+        w.font = Font.regularSystemFont(10);
+        w.textColor = TEXT_DIM;
+    }
+
+    if (data.weather.location) {
+        statsRow.addSpacer();
+        const loc = statsRow.addText(data.weather.location);
+        loc.font = Font.regularSystemFont(10);
+        loc.textColor = TEXT_MUTED;
+        loc.lineLimit = 1;
+    }
+
+    return card;
 }
 
-function addHourly(w, data) {
-    if (!data.weather || !data.weather.hourly || data.weather.hourly.length === 0) return;
+// ── Section: Hourly Forecast Card ──────────────────────────────────
+function buildHourlyCard(parent, data) {
+    if (!data.weather || !data.weather.hourly || data.weather.hourly.length === 0) return null;
 
-    const hourlyRow = w.addStack();
-    hourlyRow.spacing = 0;
+    const card = makeCard(parent, { pt: 8, pb: 8, pl: 10, pr: 10, bg: CARD_BG_ALT });
+    const row = card.addStack();
+    row.centerAlignContent();
+
     const hours = data.weather.hourly.slice(0, 6);
+    for (let i = 0; i < hours.length; i++) {
+        const h = hours[i];
+        if (i > 0) row.addSpacer();
 
-    for (const h of hours) {
-        const col = hourlyRow.addStack();
+        const col = row.addStack();
         col.layoutVertically();
         col.centerAlignContent();
-        col.size = new Size(0, 0);
-
-        if (hours.indexOf(h) > 0) hourlyRow.addSpacer();
 
         const dt = h.dt ? new Date(h.dt * 1000) : null;
         const timeStr = dt
@@ -179,29 +209,35 @@ function addHourly(w, data) {
         const tLabel = col.addText(timeStr);
         tLabel.font = Font.regularSystemFont(9);
         tLabel.textColor = TEXT_MUTED;
-        col.addSpacer(2);
+        tLabel.centerAlignText();
 
-        addIcon(col, weatherSF(h.condition), 13, TEXT_SECONDARY);
-        col.addSpacer(2);
+        col.addSpacer(3);
+        sfImg(weatherSF(h.condition), 14, TEXT_DIM, col);
+        col.addSpacer(3);
 
         const tTemp = col.addText(`${Math.round(h.temp || 0)}°`);
-        tTemp.font = Font.mediumSystemFont(11);
-        tTemp.textColor = TEXT_PRIMARY;
+        tTemp.font = Font.semiboldSystemFont(12);
+        tTemp.textColor = WHITE;
+        tTemp.centerAlignText();
     }
+
+    return card;
 }
 
-function addCommuteRow(w, data) {
-    if (!data.commute || !data.commute.duration_text) return;
+// ── Section: Commute Card ──────────────────────────────────────────
+function buildCommuteCard(parent, data) {
+    if (!data.commute || !data.commute.duration_text) return null;
 
-    const row = w.addStack();
+    const card = makeCard(parent, { pt: 8, pb: 8, bg: CARD_BG_ALT });
+    const row = card.addStack();
     row.centerAlignContent();
 
-    addIcon(row, "car.fill", 12, TEXT_SECONDARY);
-    row.addSpacer(5);
+    sfImg("car.fill", 13, TEAL, row);
+    row.addSpacer(6);
 
     const dur = row.addText(data.commute.duration_text);
-    dur.font = Font.mediumSystemFont(12);
-    dur.textColor = TEXT_PRIMARY;
+    dur.font = Font.semiboldSystemFont(13);
+    dur.textColor = WHITE;
 
     if (data.commute.distance_text) {
         row.addSpacer(6);
@@ -213,220 +249,262 @@ function addCommuteRow(w, data) {
     if (data.commute.leave_by) {
         row.addSpacer();
         const leave = row.addText(`Leave ${data.commute.leave_by}`);
-        leave.font = Font.mediumSystemFont(11);
+        leave.font = Font.semiboldSystemFont(11);
         leave.textColor = ACCENT;
     }
+
+    return card;
 }
 
-function addCalendarEvents(w, data, startIdx, maxCount) {
-    if (!data.calendar || data.calendar.length <= startIdx) {
-        if (startIdx === 0) {
-            const row = w.addStack();
-            row.centerAlignContent();
-            addIcon(row, "calendar", 12, TEXT_MUTED);
-            row.addSpacer(5);
-            const t = row.addText("No events today");
-            t.font = Font.regularSystemFont(12);
-            t.textColor = TEXT_MUTED;
-        }
-        return;
-    }
+// ── Section: Calendar Card ─────────────────────────────────────────
+function buildCalendarCard(parent, data, maxEvents) {
+    const card = makeCard(parent, { pt: 8, pb: 8 });
 
-    const end = Math.min(data.calendar.length, startIdx + maxCount);
-    for (let i = startIdx; i < end; i++) {
-        const ev = data.calendar[i];
-        const row = w.addStack();
-        row.centerAlignContent();
-
-        addIcon(row, "calendar", 12, i === 0 ? ACCENT : ACCENT_DIM);
-        row.addSpacer(5);
-
-        const evTime = row.addText(formatTime(ev.start));
-        evTime.font = Font.mediumMonospacedSystemFont(12);
-        evTime.textColor = ACCENT;
-        row.addSpacer(6);
-
-        const evName = row.addText(ev.subject || ev.title || "Event");
-        evName.font = Font.mediumSystemFont(12);
-        evName.textColor = TEXT_PRIMARY;
-        evName.lineLimit = 1;
-
-        if (i < end - 1) w.addSpacer(2);
-    }
-}
-
-function addBirthdays(w, data) {
-    if (!data.birthdays || data.birthdays.length === 0) return;
-
-    const row = w.addStack();
-    row.centerAlignContent();
-    addIcon(row, "gift.fill", 12, ACCENT);
-    row.addSpacer(5);
-    const names = data.birthdays.map(b => b.name).join(", ");
-    const t = row.addText(names);
-    t.font = Font.mediumSystemFont(12);
-    t.textColor = TEXT_PRIMARY;
-    t.lineLimit = 1;
-}
-
-function addNewsHeadlines(w, data, max) {
-    if (!data.news) return;
-    const headlines = data.news.headlines || data.news.Headlines || [];
-    if (headlines.length === 0) return;
-
-    const hdr = w.addStack();
+    // Header
+    const hdr = card.addStack();
     hdr.centerAlignContent();
-    addIcon(hdr, "newspaper.fill", 11, TEXT_SECONDARY);
+    sfImg("calendar", 11, ACCENT, hdr);
+    hdr.addSpacer(5);
+    const label = hdr.addText("Schedule");
+    label.font = Font.semiboldSystemFont(11);
+    label.textColor = TEXT_DIM;
+    card.addSpacer(5);
+
+    if (!data.calendar || data.calendar.length === 0) {
+        const t = card.addText("No events today");
+        t.font = Font.regularSystemFont(12);
+        t.textColor = TEXT_MUTED;
+        return card;
+    }
+
+    const count = Math.min(data.calendar.length, maxEvents);
+    for (let i = 0; i < count; i++) {
+        const ev = data.calendar[i];
+        const evRow = card.addStack();
+        evRow.centerAlignContent();
+
+        const time = evRow.addText(fmtTime(ev.start));
+        time.font = Font.mediumMonospacedSystemFont(11);
+        time.textColor = ACCENT_SOFT;
+        time.minimumScaleFactor = 0.8;
+
+        evRow.addSpacer(8);
+
+        const name = evRow.addText(ev.subject || ev.title || "Event");
+        name.font = Font.mediumSystemFont(12);
+        name.textColor = WHITE;
+        name.lineLimit = 1;
+
+        if (i < count - 1) card.addSpacer(3);
+    }
+
+    // Birthdays inline
+    if (data.birthdays && data.birthdays.length > 0) {
+        card.addSpacer(5);
+        const bdayRow = card.addStack();
+        bdayRow.centerAlignContent();
+        sfImg("gift.fill", 11, ACCENT, bdayRow);
+        bdayRow.addSpacer(5);
+        const names = data.birthdays.map(b => b.name).join(", ");
+        const t = bdayRow.addText(names);
+        t.font = Font.mediumSystemFont(11);
+        t.textColor = WHITE;
+        t.lineLimit = 1;
+    }
+
+    return card;
+}
+
+// ── Section: News Card ─────────────────────────────────────────────
+function buildNewsCard(parent, data, maxItems) {
+    if (!data.news) return null;
+    const headlines = data.news.headlines || data.news.Headlines || [];
+    if (headlines.length === 0) return null;
+
+    const card = makeCard(parent, { pt: 8, pb: 8 });
+
+    const hdr = card.addStack();
+    hdr.centerAlignContent();
+    sfImg("newspaper.fill", 11, TEXT_DIM, hdr);
     hdr.addSpacer(5);
     const label = hdr.addText("Headlines");
     label.font = Font.semiboldSystemFont(11);
-    label.textColor = TEXT_SECONDARY;
-    w.addSpacer(3);
+    label.textColor = TEXT_DIM;
+    card.addSpacer(4);
 
-    const count = Math.min(headlines.length, max);
+    const count = Math.min(headlines.length, maxItems);
     for (let i = 0; i < count; i++) {
-        const article = headlines[i];
-        const row = w.addStack();
-        row.centerAlignContent();
-        row.addSpacer(17);
-        const title = row.addText(article.title || "");
-        title.font = Font.regularSystemFont(11);
-        title.textColor = TEXT_PRIMARY;
-        title.lineLimit = 1;
-        if (i < count - 1) w.addSpacer(2);
+        const t = card.addText(headlines[i].title || "");
+        t.font = Font.regularSystemFont(11);
+        t.textColor = new Color("#ccccdd");
+        t.lineLimit = 1;
+        if (i < count - 1) card.addSpacer(2);
     }
+
+    return card;
 }
 
-function addReminders(w, data, max) {
-    if (!data.reminders || data.reminders.length === 0) return;
+// ── Section: Reminders Card ────────────────────────────────────────
+function buildRemindersCard(parent, data, maxItems) {
+    if (!data.reminders || data.reminders.length === 0) return null;
 
-    const hdr = w.addStack();
+    const card = makeCard(parent, { pt: 8, pb: 8 });
+
+    const hdr = card.addStack();
     hdr.centerAlignContent();
-    addIcon(hdr, "checklist", 11, TEXT_SECONDARY);
+    sfImg("checklist", 11, TEAL, hdr);
     hdr.addSpacer(5);
     const label = hdr.addText("Reminders");
     label.font = Font.semiboldSystemFont(11);
-    label.textColor = TEXT_SECONDARY;
-    w.addSpacer(3);
+    label.textColor = TEXT_DIM;
+    card.addSpacer(4);
 
-    const count = Math.min(data.reminders.length, max);
+    const count = Math.min(data.reminders.length, maxItems);
     for (let i = 0; i < count; i++) {
         const r = data.reminders[i];
-        const row = w.addStack();
+        const row = card.addStack();
         row.centerAlignContent();
-        row.addSpacer(17);
+        sfImg("circle", 8, TEXT_MUTED, row);
+        row.addSpacer(5);
         const t = row.addText(r.title || "Reminder");
         t.font = Font.regularSystemFont(11);
-        t.textColor = TEXT_PRIMARY;
+        t.textColor = new Color("#ccccdd");
         t.lineLimit = 1;
-        if (i < count - 1) w.addSpacer(2);
+        if (i < count - 1) card.addSpacer(2);
     }
+
+    return card;
 }
 
-function addFlaggedEmails(w, data, max) {
-    if (!data.flagged_emails || data.flagged_emails.length === 0) return;
+// ── Section: Flagged Emails Card ───────────────────────────────────
+function buildFlaggedCard(parent, data, maxItems) {
+    if (!data.flagged_emails || data.flagged_emails.length === 0) return null;
 
-    const hdr = w.addStack();
+    const card = makeCard(parent, { pt: 8, pb: 8 });
+
+    const hdr = card.addStack();
     hdr.centerAlignContent();
-    addIcon(hdr, "flag.fill", 11, ACCENT);
+    sfImg("flag.fill", 11, ACCENT, hdr);
     hdr.addSpacer(5);
-    const label = hdr.addText("Flagged Emails");
+    const label = hdr.addText("Flagged");
     label.font = Font.semiboldSystemFont(11);
-    label.textColor = TEXT_SECONDARY;
-    w.addSpacer(3);
+    label.textColor = TEXT_DIM;
+    card.addSpacer(4);
 
-    const count = Math.min(data.flagged_emails.length, max);
+    const count = Math.min(data.flagged_emails.length, maxItems);
     for (let i = 0; i < count; i++) {
         const e = data.flagged_emails[i];
-        const row = w.addStack();
-        row.centerAlignContent();
-        row.addSpacer(17);
-        const subj = row.addText(e.subject || "Email");
-        subj.font = Font.regularSystemFont(11);
-        subj.textColor = TEXT_PRIMARY;
-        subj.lineLimit = 1;
-        if (i < count - 1) w.addSpacer(2);
+        const t = card.addText(e.subject || "Email");
+        t.font = Font.regularSystemFont(11);
+        t.textColor = new Color("#ccccdd");
+        t.lineLimit = 1;
+        if (i < count - 1) card.addSpacer(2);
     }
+
+    return card;
 }
 
 // ── Medium Widget ──────────────────────────────────────────────────
 function buildMediumWidget(data) {
-    const w = createWidget();
-    w.setPadding(10, 12, 10, 12);
+    const w = new ListWidget();
+    const grad = new LinearGradient();
+    grad.locations = [0, 1];
+    grad.colors = [new Color("#0d0d1a"), new Color("#171728")];
+    w.backgroundGradient = grad;
+    w.setPadding(10, 10, 10, 10);
+    w.url = DASHBOARD_URL;
+    w.spacing = 6;
 
-    addHeader(w, data);
-    w.addSpacer(6);
-    addWeather(w, data);
-    w.addSpacer(5);
-    addHourly(w, data);
-    w.addSpacer(5);
-    addCommuteRow(w, data);
-    w.addSpacer(3);
-    addCalendarEvents(w, data, 0, 1);
+    // Row 1: Date card + Weather card
+    const topRow = w.addStack();
+    topRow.spacing = 6;
 
-    if (data.birthdays && data.birthdays.length > 0) {
-        w.addSpacer(3);
-        addBirthdays(w, data);
+    const dateCard = buildDateCard(topRow);
+    dateCard.size = new Size(70, 0);
+
+    buildWeatherCard(topRow, data);
+
+    // Row 2: Hourly
+    buildHourlyCard(w, data);
+
+    // Row 3: Commute or Event (pick most useful)
+    if (data.commute && data.commute.duration_text) {
+        buildCommuteCard(w, data);
     }
 
-    w.addSpacer();
+    // Event inline
+    if (data.calendar && data.calendar.length > 0) {
+        const evCard = makeCard(w, { pt: 6, pb: 6, bg: CARD_BG_ALT });
+        const ev = data.calendar[0];
+        const evRow = evCard.addStack();
+        evRow.centerAlignContent();
+        sfImg("calendar", 11, ACCENT, evRow);
+        evRow.addSpacer(5);
+        const time = evRow.addText(fmtTime(ev.start));
+        time.font = Font.mediumMonospacedSystemFont(11);
+        time.textColor = ACCENT_SOFT;
+        evRow.addSpacer(6);
+        const name = evRow.addText(ev.subject || ev.title || "Event");
+        name.font = Font.mediumSystemFont(12);
+        name.textColor = WHITE;
+        name.lineLimit = 1;
+    }
+
     return w;
 }
 
 // ── Large Widget ───────────────────────────────────────────────────
 function buildLargeWidget(data) {
-    const w = createWidget();
-    w.setPadding(12, 14, 12, 14);
+    const w = new ListWidget();
+    const grad = new LinearGradient();
+    grad.locations = [0, 1];
+    grad.colors = [new Color("#0d0d1a"), new Color("#171728")];
+    w.backgroundGradient = grad;
+    w.setPadding(12, 12, 12, 12);
+    w.url = DASHBOARD_URL;
+    w.spacing = 6;
 
-    // ─ Top: Header + Weather ─
-    addHeader(w, data);
-    w.addSpacer(6);
-    addWeather(w, data);
-    w.addSpacer(5);
-    addHourly(w, data);
+    // ── Row 1: Date + Weather ──
+    const topRow = w.addStack();
+    topRow.spacing = 6;
 
-    addDivider(w);
+    const dateCard = buildDateCard(topRow);
+    dateCard.size = new Size(74, 0);
 
-    // ─ Middle: Commute + Schedule ─
-    addCommuteRow(w, data);
-    w.addSpacer(4);
-    addCalendarEvents(w, data, 0, 4);
+    buildWeatherCard(topRow, data);
 
-    if (data.birthdays && data.birthdays.length > 0) {
-        w.addSpacer(4);
-        addBirthdays(w, data);
-    }
+    // ── Row 2: Hourly Forecast ──
+    buildHourlyCard(w, data);
 
-    addDivider(w);
+    // ── Row 3: Commute ──
+    buildCommuteCard(w, data);
 
-    // ─ Bottom: News + Reminders + Flagged ─
-    // Show whichever sections have data, fill the remaining space
-    const hasNews = data.news && ((data.news.headlines || []).length > 0 || (data.news.Headlines || []).length > 0);
+    // ── Row 4: Calendar ──
+    buildCalendarCard(w, data, 4);
+
+    // ── Row 5: News + Reminders side by side ──
+    const hasNews = data.news && ((data.news.headlines || data.news.Headlines || []).length > 0);
     const hasReminders = data.reminders && data.reminders.length > 0;
     const hasFlagged = data.flagged_emails && data.flagged_emails.length > 0;
 
-    if (hasNews) {
-        addNewsHeadlines(w, data, 3);
+    if (hasNews || hasReminders || hasFlagged) {
+        const bottomRow = w.addStack();
+        bottomRow.spacing = 6;
+
+        if (hasNews) {
+            buildNewsCard(bottomRow, data, 3);
+        }
+
+        if (hasReminders) {
+            buildRemindersCard(bottomRow, data, 3);
+        } else if (hasFlagged) {
+            buildFlaggedCard(bottomRow, data, 3);
+        }
     }
 
-    if (hasReminders) {
-        if (hasNews) w.addSpacer(5);
-        addReminders(w, data, 3);
-    }
-
-    if (hasFlagged) {
-        if (hasNews || hasReminders) w.addSpacer(5);
-        addFlaggedEmails(w, data, 2);
-    }
-
-    if (!hasNews && !hasReminders && !hasFlagged) {
-        const row = w.addStack();
-        row.centerAlignContent();
-        addIcon(row, "checkmark.circle", 12, TEXT_MUTED);
-        row.addSpacer(5);
-        const t = row.addText("All clear");
-        t.font = Font.regularSystemFont(12);
-        t.textColor = TEXT_MUTED;
+    // If flagged emails exist AND reminders were already shown
+    if (hasReminders && hasFlagged) {
+        buildFlaggedCard(w, data, 2);
     }
 
     w.addSpacer();
@@ -435,22 +513,27 @@ function buildLargeWidget(data) {
 
 // ── Error Widget ───────────────────────────────────────────────────
 function buildErrorWidget() {
-    const w = createWidget();
+    const w = new ListWidget();
+    const grad = new LinearGradient();
+    grad.locations = [0, 1];
+    grad.colors = [new Color("#0d0d1a"), new Color("#171728")];
+    w.backgroundGradient = grad;
     w.setPadding(16, 16, 16, 16);
+    w.url = DASHBOARD_URL;
 
-    const title = w.addText("Morning Briefing");
+    const card = makeCard(w, { pt: 20, pb: 20 });
+
+    const title = card.addText("Morning Briefing");
     title.font = Font.boldSystemFont(16);
-    title.textColor = TEXT_PRIMARY;
-    w.addSpacer(8);
-
-    const err = w.addText("Could not connect");
+    title.textColor = WHITE;
+    card.addSpacer(8);
+    const err = card.addText("Could not connect");
     err.font = Font.regularSystemFont(14);
     err.textColor = ACCENT;
-    w.addSpacer(4);
-
-    const hint = w.addText("Check API_URL and network");
+    card.addSpacer(4);
+    const hint = card.addText("Check API_URL and network");
     hint.font = Font.regularSystemFont(12);
-    hint.textColor = TEXT_SECONDARY;
+    hint.textColor = TEXT_DIM;
 
     w.addSpacer();
     return w;
@@ -461,7 +544,6 @@ async function sendNotification(data) {
     const n = new Notification();
     n.title = "Morning Briefing";
     n.subtitle = "Your morning briefing is ready";
-
     const nc = data && data.weather ? data.weather.current : null;
     if (nc && !data.weather.error) {
         const temp = Math.round(nc.temp || 0);
@@ -469,12 +551,11 @@ async function sendNotification(data) {
         n.body = `${temp}° ${desc}`;
         if (data.calendar && data.calendar.length > 0) {
             const ev = data.calendar[0];
-            n.body += ` | Next: ${ev.subject || ev.title || "Event"} at ${formatTime(ev.start)}`;
+            n.body += ` | Next: ${ev.subject || ev.title || "Event"} at ${fmtTime(ev.start)}`;
         }
     } else {
         n.body = "Tap to view your dashboard";
     }
-
     n.openURL = DASHBOARD_URL;
     await n.schedule();
 }
@@ -492,16 +573,13 @@ async function main() {
         widget = buildMediumWidget(data);
     }
 
-    if (data) {
-        await sendNotification(data);
-    }
+    if (data) await sendNotification(data);
 
     if (config.runsInWidget) {
         Script.setWidget(widget);
     } else {
         widget.presentLarge();
     }
-
     Script.complete();
 }
 
