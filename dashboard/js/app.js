@@ -41,13 +41,13 @@ function setGreeting() {
     const icon = document.getElementById('greeting-icon');
 
     if (hour < 12) {
-        el.textContent = 'Good Morning, Nathan';
+        el.textContent = 'Good Morning, Nic';
         icon.className = 'ph ph-sun-horizon text-3xl text-amber-400';
     } else if (hour < 17) {
-        el.textContent = 'Good Afternoon, Nathan';
+        el.textContent = 'Good Afternoon, Nic';
         icon.className = 'ph ph-sun text-3xl text-yellow-400';
     } else {
-        el.textContent = 'Good Evening, Nathan';
+        el.textContent = 'Good Evening, Nic';
         icon.className = 'ph ph-moon-stars text-3xl text-indigo-300';
     }
 

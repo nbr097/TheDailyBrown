@@ -5,7 +5,7 @@
 TheDailyBrown is a personal morning briefing system that runs on a Raspberry Pi. It aggregates weather, Outlook calendar, personal calendar, commute time, birthdays, news (headlines, AI, movies, Tesla, Stremio), Apple Reminders, and flagged Outlook emails into a glassmorphism web dashboard and a Scriptable iOS widget.
 
 **Repo:** https://github.com/nbr097/TheDailyBrown
-**Owner:** Nathan Brown (nbr097)
+**Owner:** Nic Brown (nbr097)
 
 ## Quick Start
 

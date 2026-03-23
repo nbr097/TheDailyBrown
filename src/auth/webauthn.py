@@ -59,8 +59,8 @@ async def register_options():
     options = generate_registration_options(
         rp_id=_rp_id(),
         rp_name="Morning Briefing",
-        user_name="nathan",
-        user_display_name="Nathan",
+        user_name="nic",
+        user_display_name="Nic",
         authenticator_selection=AuthenticatorSelectionCriteria(
             resident_key=ResidentKeyRequirement.PREFERRED,
             user_verification=UserVerificationRequirement.PREFERRED,
