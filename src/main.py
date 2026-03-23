@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.database import init_db
+from src.auth.webauthn import router as webauthn_router
+from src.routes.admin import router as admin_router
 from src.routes.data import router as data_router
 from src.routes.summary import router as summary_router
 from src.scheduler import create_scheduler, get_system_health, run_cache_job
@@ -29,10 +31,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Morning Briefing", docs_url=None, redoc_url=None, lifespan=lifespan)
+app.include_router(admin_router)
 app.include_router(data_router)
 app.include_router(summary_router)
+app.include_router(webauthn_router)
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "systems": get_system_health()}
+    systems = get_system_health()
+    has_errors = any(s.get("status") == "error" for s in systems.values())
+    return {"status": "degraded" if has_errors else "healthy", "systems": systems}
