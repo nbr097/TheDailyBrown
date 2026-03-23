@@ -227,7 +227,7 @@ function renderCalendar(events) {
         return;
     }
 
-    const sorted = [...events].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    const sorted = [...events].sort((a, b) => (a.start || '').localeCompare(b.start || ''));
     el.innerHTML = sorted.map(ev => {
         const borderClass = (ev.source || '').toLowerCase() === 'work' ? 'source-work' : 'source-personal';
         const teamsLink = ev.teams_link
@@ -236,14 +236,16 @@ function renderCalendar(events) {
         const location = ev.location
             ? `<span class="flex items-center gap-1 text-xs text-slate-500"><i class="ph ph-map-pin"></i>${ev.location}</span>`
             : '';
+        const title = ev.subject || ev.title || 'Untitled';
+        const timeStr = ev.start ? new Date(ev.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
         return `
             <div class="pl-3 py-2 ${borderClass} space-y-0.5">
                 <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium">${ev.title || 'Untitled'}</span>
+                    <span class="text-sm font-medium">${title}</span>
                     ${teamsLink}
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="text-xs text-slate-400">${ev.time || ''}</span>
+                    <span class="text-xs text-slate-400">${timeStr}</span>
                     ${location}
                 </div>
             </div>
