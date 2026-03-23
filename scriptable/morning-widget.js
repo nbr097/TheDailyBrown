@@ -64,7 +64,7 @@ function weatherSymbol(condition) {
 function buildMediumWidget(data) {
     const w = new ListWidget();
     w.backgroundColor = WIDGET_BG;
-    w.setPadding(12, 14, 12, 14);
+    w.setPadding(8, 8, 8, 8);
     w.url = DASHBOARD_URL;
 
     // Date & location
