@@ -252,14 +252,14 @@ function buildMediumWidget(data) {
 // ── Large Widget ───────────────────────────────────────────────────
 function buildLargeWidget(data) {
     const w = buildMediumWidget(data);
-    w.addSpacer(8);
+    w.addSpacer(6);
 
     // Additional calendar events
     if (data.calendar && data.calendar.length > 1) {
         const divider = w.addText("─ Upcoming ─");
         divider.font = Font.regularSystemFont(11);
         divider.textColor = TEXT_SECONDARY;
-        w.addSpacer(4);
+        w.addSpacer(3);
 
         const maxEvents = Math.min(data.calendar.length, 5);
         for (let i = 1; i < maxEvents; i++) {
@@ -280,18 +280,119 @@ function buildLargeWidget(data) {
 
     // Birthdays
     if (data.birthdays && data.birthdays.length > 0) {
-        w.addSpacer(6);
-        const bdayHeader = w.addText("🎂 Birthdays");
-        bdayHeader.font = Font.mediumSystemFont(12);
-        bdayHeader.textColor = TEXT_SECONDARY;
+        w.addSpacer(4);
+        const bdayRow = w.addStack();
+        bdayRow.centerAlignContent();
+        const giftSym = SFSymbol.named("gift.fill");
+        if (giftSym) {
+            const giftImg = bdayRow.addImage(giftSym.image);
+            giftImg.imageSize = new Size(12, 12);
+            giftImg.tintColor = ACCENT;
+            bdayRow.addSpacer(4);
+        }
+        const names = data.birthdays.map(b => b.name).join(", ");
+        const bdayText = bdayRow.addText(names);
+        bdayText.font = Font.mediumSystemFont(12);
+        bdayText.textColor = TEXT_PRIMARY;
+        bdayText.lineLimit = 1;
+    }
+
+    // Reminders
+    if (data.reminders && data.reminders.length > 0) {
+        w.addSpacer(4);
+        const remHeader = w.addStack();
+        remHeader.centerAlignContent();
+        const checkSym = SFSymbol.named("checklist");
+        if (checkSym) {
+            const checkImg = remHeader.addImage(checkSym.image);
+            checkImg.imageSize = new Size(12, 12);
+            checkImg.tintColor = TEXT_SECONDARY;
+            remHeader.addSpacer(4);
+        }
+        const remLabel = remHeader.addText("Reminders");
+        remLabel.font = Font.regularSystemFont(11);
+        remLabel.textColor = TEXT_SECONDARY;
         w.addSpacer(2);
 
-        for (const b of data.birthdays.slice(0, 3)) {
+        const maxReminders = Math.min(data.reminders.length, 3);
+        for (let i = 0; i < maxReminders; i++) {
+            const r = data.reminders[i];
             const row = w.addStack();
-            const name = row.addText(b.name || "Birthday");
-            name.font = Font.regularSystemFont(12);
-            name.textColor = TEXT_PRIMARY;
+            row.centerAlignContent();
+            const bullet = row.addText("  ");
+            bullet.font = Font.regularSystemFont(10);
+            const rText = row.addText(r.title || "Reminder");
+            rText.font = Font.regularSystemFont(11);
+            rText.textColor = TEXT_PRIMARY;
+            rText.lineLimit = 1;
+            w.addSpacer(1);
+        }
+    }
+
+    // News headlines
+    if (data.news) {
+        const headlines = data.news.headlines || data.news.Headlines || [];
+        if (headlines.length > 0) {
+            w.addSpacer(4);
+            const newsHeader = w.addStack();
+            newsHeader.centerAlignContent();
+            const newsSym = SFSymbol.named("newspaper.fill");
+            if (newsSym) {
+                const newsImg = newsHeader.addImage(newsSym.image);
+                newsImg.imageSize = new Size(12, 12);
+                newsImg.tintColor = TEXT_SECONDARY;
+                newsHeader.addSpacer(4);
+            }
+            const newsLabel = newsHeader.addText("Headlines");
+            newsLabel.font = Font.regularSystemFont(11);
+            newsLabel.textColor = TEXT_SECONDARY;
             w.addSpacer(2);
+
+            const maxNews = Math.min(headlines.length, 3);
+            for (let i = 0; i < maxNews; i++) {
+                const article = headlines[i];
+                const row = w.addStack();
+                row.centerAlignContent();
+                const dot = row.addText("  ");
+                dot.font = Font.regularSystemFont(10);
+                const title = row.addText(article.title || "");
+                title.font = Font.regularSystemFont(11);
+                title.textColor = TEXT_PRIMARY;
+                title.lineLimit = 1;
+                w.addSpacer(1);
+            }
+        }
+    }
+
+    // Flagged emails
+    if (data.flagged_emails && data.flagged_emails.length > 0) {
+        w.addSpacer(4);
+        const emailHeader = w.addStack();
+        emailHeader.centerAlignContent();
+        const flagSym = SFSymbol.named("flag.fill");
+        if (flagSym) {
+            const flagImg = emailHeader.addImage(flagSym.image);
+            flagImg.imageSize = new Size(12, 12);
+            flagImg.tintColor = ACCENT;
+            emailHeader.addSpacer(4);
+        }
+        const emailLabel = emailHeader.addText("Flagged");
+        emailLabel.font = Font.regularSystemFont(11);
+        emailLabel.textColor = TEXT_SECONDARY;
+        w.addSpacer(2);
+
+        const maxEmails = Math.min(data.flagged_emails.length, 2);
+        for (let i = 0; i < maxEmails; i++) {
+            const e = data.flagged_emails[i];
+            const row = w.addStack();
+            row.centerAlignContent();
+            const bullet = row.addText("  ");
+            bullet.font = Font.regularSystemFont(10);
+            const subj = row.addText(e.subject || "Email");
+            subj.font = Font.regularSystemFont(11);
+            subj.textColor = TEXT_PRIMARY;
+            subj.lineLimit = 1;
+            w.addSpacer(1);
         }
     }
 
