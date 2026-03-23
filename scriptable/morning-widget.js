@@ -349,7 +349,11 @@ function buildNewsCard(parent, data, maxItems) {
 
     const count = Math.min(headlines.length, maxItems);
     for (let i = 0; i < count; i++) {
-        const t = card.addText(headlines[i].title || "");
+        const row = card.addStack();
+        row.topAlignContent();
+        sfImg("circle.fill", 5, ACCENT_SOFT, row);
+        row.addSpacer(6);
+        const t = row.addText(headlines[i].title || "");
         t.font = Font.regularSystemFont(11);
         t.textColor = new Color("#ccccdd");
         t.lineLimit = 2;
