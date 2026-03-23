@@ -36,8 +36,9 @@ let authToken = null;
 // ---------- page load: attempt auth ----------
 
 window.addEventListener('DOMContentLoaded', async () => {
-    // WebAuthn is disabled for now — Cloudflare Access handles authentication
-    // Go straight to dashboard
+    // Cloudflare Access handles authentication
+    // Use the API bearer token for summary requests
+    authToken = '76cbca42da3b3c6fa90a09397c96deaa8f91e1ea856eca33e93b6b052855bd14';
     onAuthSuccess();
 });
 
