@@ -36,34 +36,9 @@ let authToken = null;
 // ---------- page load: attempt auth ----------
 
 window.addEventListener('DOMContentLoaded', async () => {
-    // If we just registered, skip auth and go straight to dashboard
-    if (sessionStorage.getItem('just_registered')) {
-        sessionStorage.removeItem('just_registered');
-        onAuthSuccess();
-        return;
-    }
-
-    // Check if a credential exists server-side
-    const optRes = await fetch('/auth/webauthn/authenticate-options');
-    const options = await optRes.json();
-    const hasCredentials = options.allowCredentials && options.allowCredentials.length > 0;
-
-    if (!hasCredentials) {
-        // No registered credentials — show register button, skip auto-auth
-        authStatus.textContent = '';
-        registerSec.classList.remove('hidden');
-        return;
-    }
-
-    // Credentials exist — try auto-auth
-    authStatus.textContent = 'Checking credentials...';
-    try {
-        await authenticate();
-    } catch (err) {
-        console.log('Auto-auth failed:', err.message);
-        authStatus.textContent = '';
-        showAuthError('Authentication verification failed');
-    }
+    // WebAuthn is disabled for now — Cloudflare Access handles authentication
+    // Go straight to dashboard
+    onAuthSuccess();
 });
 
 // ---------- public entry points (called from HTML buttons) ----------
