@@ -121,7 +121,7 @@ function buildWeatherCard(parent, data) {
         return card;
     }
 
-    // Top: icon + temp + description
+    // Top: icon + temp + description + spacer to stretch
     const topRow = card.addStack();
     topRow.centerAlignContent();
 
@@ -146,6 +146,8 @@ function buildWeatherCard(parent, data) {
         fl.font = Font.regularSystemFont(10);
         fl.textColor = TEXT_MUTED;
     }
+
+    topRow.addSpacer(); // stretch to fill width
 
     card.addSpacer(4);
 
@@ -174,8 +176,9 @@ function buildWeatherCard(parent, data) {
         w.textColor = TEXT_DIM;
     }
 
+    statsRow.addSpacer(); // stretch to fill width
+
     if (data.weather.location) {
-        statsRow.addSpacer();
         const loc = statsRow.addText(data.weather.location);
         loc.font = Font.regularSystemFont(10);
         loc.textColor = TEXT_MUTED;
@@ -246,8 +249,9 @@ function buildCommuteCard(parent, data) {
         dist.textColor = TEXT_MUTED;
     }
 
+    row.addSpacer(); // always stretch to full width
+
     if (data.commute.leave_by) {
-        row.addSpacer();
         const leave = row.addText(`Leave ${data.commute.leave_by}`);
         leave.font = Font.semiboldSystemFont(11);
         leave.textColor = ACCENT;
@@ -260,7 +264,7 @@ function buildCommuteCard(parent, data) {
 function buildCalendarCard(parent, data, maxEvents) {
     const card = makeCard(parent, { pt: 8, pb: 8 });
 
-    // Header
+    // Header — trailing spacer stretches card to full width
     const hdr = card.addStack();
     hdr.centerAlignContent();
     sfImg("calendar", 11, ACCENT, hdr);
@@ -268,6 +272,7 @@ function buildCalendarCard(parent, data, maxEvents) {
     const label = hdr.addText("Schedule");
     label.font = Font.semiboldSystemFont(11);
     label.textColor = TEXT_DIM;
+    hdr.addSpacer();
     card.addSpacer(5);
 
     if (!data.calendar || data.calendar.length === 0) {
@@ -294,6 +299,15 @@ function buildCalendarCard(parent, data, maxEvents) {
         name.font = Font.mediumSystemFont(12);
         name.textColor = WHITE;
         name.lineLimit = 1;
+
+        evRow.addSpacer(); // stretch row
+
+        if (ev.location) {
+            const loc = evRow.addText(ev.location.split(",")[0]);
+            loc.font = Font.regularSystemFont(9);
+            loc.textColor = TEXT_MUTED;
+            loc.lineLimit = 1;
+        }
 
         if (i < count - 1) card.addSpacer(3);
     }
@@ -330,6 +344,7 @@ function buildNewsCard(parent, data, maxItems) {
     const label = hdr.addText("Headlines");
     label.font = Font.semiboldSystemFont(11);
     label.textColor = TEXT_DIM;
+    hdr.addSpacer(); // stretch card to full width
     card.addSpacer(4);
 
     const count = Math.min(headlines.length, maxItems);
@@ -337,8 +352,8 @@ function buildNewsCard(parent, data, maxItems) {
         const t = card.addText(headlines[i].title || "");
         t.font = Font.regularSystemFont(11);
         t.textColor = new Color("#ccccdd");
-        t.lineLimit = 1;
-        if (i < count - 1) card.addSpacer(2);
+        t.lineLimit = 2;
+        if (i < count - 1) card.addSpacer(3);
     }
 
     return card;
@@ -357,6 +372,7 @@ function buildRemindersCard(parent, data, maxItems) {
     const label = hdr.addText("Reminders");
     label.font = Font.semiboldSystemFont(11);
     label.textColor = TEXT_DIM;
+    hdr.addSpacer();
     card.addSpacer(4);
 
     const count = Math.min(data.reminders.length, maxItems);
@@ -389,6 +405,7 @@ function buildFlaggedCard(parent, data, maxItems) {
     const label = hdr.addText("Flagged");
     label.font = Font.semiboldSystemFont(11);
     label.textColor = TEXT_DIM;
+    hdr.addSpacer();
     card.addSpacer(4);
 
     const count = Math.min(data.flagged_emails.length, maxItems);
@@ -482,29 +499,26 @@ function buildLargeWidget(data) {
     // ── Row 4: Calendar ──
     buildCalendarCard(w, data, 4);
 
-    // ── Row 5: News + Reminders side by side ──
+    // ── Row 5: News (full width, more items) ──
     const hasNews = data.news && ((data.news.headlines || data.news.Headlines || []).length > 0);
     const hasReminders = data.reminders && data.reminders.length > 0;
     const hasFlagged = data.flagged_emails && data.flagged_emails.length > 0;
 
-    if (hasNews || hasReminders || hasFlagged) {
+    if (hasNews) {
+        buildNewsCard(w, data, 4);
+    }
+
+    // ── Row 6: Reminders + Flagged side by side ──
+    if (hasReminders || hasFlagged) {
         const bottomRow = w.addStack();
         bottomRow.spacing = 6;
 
-        if (hasNews) {
-            buildNewsCard(bottomRow, data, 3);
-        }
-
         if (hasReminders) {
             buildRemindersCard(bottomRow, data, 3);
-        } else if (hasFlagged) {
+        }
+        if (hasFlagged) {
             buildFlaggedCard(bottomRow, data, 3);
         }
-    }
-
-    // If flagged emails exist AND reminders were already shown
-    if (hasReminders && hasFlagged) {
-        buildFlaggedCard(w, data, 2);
     }
 
     w.addSpacer();
