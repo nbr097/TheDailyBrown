@@ -70,8 +70,9 @@ async function startRegister() {
     btn.innerHTML = '<div class="spinner"></div><span>Registering...</span>';
     try {
         await register();
-        // After register, auto-authenticate
-        await authenticate();
+        // Registration proves identity — go straight to dashboard
+        onAuthSuccess();
+        return;
     } catch (err) {
         showAuthError(err.message || 'Registration failed');
     } finally {
