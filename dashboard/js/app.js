@@ -134,7 +134,7 @@ function showError() {
     document.getElementById('error-state').classList.remove('hidden');
     // Hide data cards
     ['weather-card', 'commute-card', 'calendar-card', 'birthdays-card',
-     'news-section', 'reminders-emails-card', 'admin-section'].forEach(id => {
+     'news-section', 'reminders-emails-card', 'unread-emails-card', 'admin-section'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
     });
 }
@@ -142,7 +142,7 @@ function showError() {
 function hideError() {
     document.getElementById('error-state').classList.add('hidden');
     ['weather-card', 'commute-card', 'calendar-card',
-     'news-section', 'reminders-emails-card', 'admin-section'].forEach(id => {
+     'news-section', 'reminders-emails-card', 'unread-emails-card', 'admin-section'].forEach(id => {
         document.getElementById(id).classList.remove('hidden');
     });
 }
