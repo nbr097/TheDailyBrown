@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import caldav
 
@@ -18,7 +19,8 @@ async def fetch_icloud_calendar() -> list[dict]:
     principal = client.principal()
     calendars = principal.calendars()
 
-    now = datetime.now()
+    tz = ZoneInfo(settings.timezone)
+    now = datetime.now(tz)
     start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_of_day = start_of_day + timedelta(days=1)
 

@@ -4,6 +4,7 @@ import logging
 import re
 from datetime import datetime
 from xml.etree import ElementTree as ET
+from zoneinfo import ZoneInfo
 
 import httpx
 import vobject
@@ -19,7 +20,9 @@ CARDDAV_NS = "urn:ietf:params:xml:ns:carddav"
 
 
 def _get_today_mmdd() -> str:
-    return datetime.now().strftime("%m%d")
+    from src.config import settings
+    tz = ZoneInfo(settings.timezone)
+    return datetime.now(tz).strftime("%m%d")
 
 
 async def _discover_addressbook_url() -> str:

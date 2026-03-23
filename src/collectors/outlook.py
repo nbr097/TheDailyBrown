@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
 import msal
@@ -70,9 +71,9 @@ def _get_access_token() -> str:
 async def fetch_outlook_calendar() -> list[dict]:
     """Fetch today's calendar events from Microsoft Graph."""
     token = _get_access_token()
-    tz = settings.timezone
+    tz = ZoneInfo(settings.timezone)
 
-    now = datetime.now()
+    now = datetime.now(tz)
     start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_of_day = start_of_day + timedelta(days=1)
 
