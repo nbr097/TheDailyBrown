@@ -1,0 +1,282 @@
+// Morning Briefing — Scriptable iOS Widget
+// ─────────────────────────────────────────
+// 1. Install Scriptable from the App Store
+// 2. Copy this file to iCloud Drive/Scriptable/
+// 3. Fill in API_URL and BEARER_TOKEN below
+// 4. Add a Scriptable widget to your Home Screen (medium or large)
+
+// ── Configuration ──────────────────────────────────────────────────
+const API_URL = "https://morning.yourdomain.com"; // your briefing URL
+const BEARER_TOKEN = "YOUR_BEARER_TOKEN_HERE";    // from install.sh output
+const DASHBOARD_URL = `${API_URL}/dashboard/`;
+// ───────────────────────────────────────────────────────────────────
+
+const WIDGET_BG = new Color("#1a1a2e", 0.85);
+const ACCENT     = new Color("#e94560");
+const TEXT_PRIMARY   = Color.white();
+const TEXT_SECONDARY = new Color("#a0a0b0");
+
+async function fetchBriefing() {
+    let loc;
+    try {
+        Location.setAccuracyToThreeKilometers();
+        loc = await Location.current();
+    } catch {
+        loc = { latitude: 0, longitude: 0 };
+    }
+
+    const url = `${API_URL}/summary?lat=${loc.latitude}&lon=${loc.longitude}`;
+    const req = new Request(url);
+    req.headers = { Authorization: `Bearer ${BEARER_TOKEN}` };
+    req.timeoutInterval = 15;
+
+    try {
+        const data = await req.loadJSON();
+        data._location = loc;
+        return data;
+    } catch (e) {
+        return null;
+    }
+}
+
+function formatTime(isoString) {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function weatherSymbol(condition) {
+    const map = {
+        Clear: "sun.max.fill",
+        Clouds: "cloud.fill",
+        Rain: "cloud.rain.fill",
+        Drizzle: "cloud.drizzle.fill",
+        Thunderstorm: "cloud.bolt.rain.fill",
+        Snow: "cloud.snow.fill",
+        Mist: "cloud.fog.fill",
+        Fog: "cloud.fog.fill",
+        Haze: "sun.haze.fill",
+    };
+    return map[condition] || "cloud.fill";
+}
+
+// ── Medium Widget ──────────────────────────────────────────────────
+function buildMediumWidget(data) {
+    const w = new ListWidget();
+    w.backgroundColor = WIDGET_BG;
+    w.setPadding(12, 14, 12, 14);
+    w.url = DASHBOARD_URL;
+
+    // Date & location
+    const now = new Date();
+    const dateStr = now.toLocaleDateString([], {
+        weekday: "long", month: "short", day: "numeric",
+    });
+
+    const header = w.addStack();
+    const dateText = header.addText(dateStr);
+    dateText.font = Font.semiboldSystemFont(13);
+    dateText.textColor = TEXT_SECONDARY;
+
+    if (data.weather && data.weather.location) {
+        header.addSpacer();
+        const locText = header.addText(data.weather.location);
+        locText.font = Font.regularSystemFont(12);
+        locText.textColor = TEXT_SECONDARY;
+    }
+
+    w.addSpacer(6);
+
+    // Weather row
+    if (data.weather && !data.weather.error) {
+        const weatherRow = w.addStack();
+        weatherRow.centerAlignContent();
+
+        const sfName = weatherSymbol(data.weather.condition);
+        const sym = SFSymbol.named(sfName);
+        if (sym) {
+            const img = weatherRow.addImage(sym.image);
+            img.imageSize = new Size(22, 22);
+            img.tintColor = ACCENT;
+            weatherRow.addSpacer(6);
+        }
+
+        const tempText = weatherRow.addText(
+            `${Math.round(data.weather.temp_f || data.weather.temp || 0)}°`
+        );
+        tempText.font = Font.boldSystemFont(24);
+        tempText.textColor = TEXT_PRIMARY;
+
+        weatherRow.addSpacer(8);
+
+        const condText = weatherRow.addText(
+            data.weather.description || data.weather.condition || ""
+        );
+        condText.font = Font.regularSystemFont(14);
+        condText.textColor = TEXT_SECONDARY;
+
+        if (data.weather.precipitation_pct != null) {
+            weatherRow.addSpacer(8);
+            const precip = weatherRow.addText(
+                `💧${data.weather.precipitation_pct}%`
+            );
+            precip.font = Font.regularSystemFont(12);
+            precip.textColor = TEXT_SECONDARY;
+        }
+    }
+
+    w.addSpacer(6);
+
+    // Next event
+    if (data.calendar && data.calendar.length > 0) {
+        const ev = data.calendar[0];
+        const evRow = w.addStack();
+        evRow.centerAlignContent();
+        const evTime = evRow.addText(formatTime(ev.start));
+        evTime.font = Font.monospacedDigitSystemFont(13, 0.3);
+        evTime.textColor = ACCENT;
+        evRow.addSpacer(6);
+        const evName = evRow.addText(ev.subject || ev.title || "Event");
+        evName.font = Font.mediumSystemFont(13);
+        evName.textColor = TEXT_PRIMARY;
+        evName.lineLimit = 1;
+    }
+
+    // Commute leave-by
+    if (data.commute && data.commute.leave_by) {
+        const commuteRow = w.addStack();
+        const leaveText = commuteRow.addText(
+            `Leave by ${formatTime(data.commute.leave_by)}`
+        );
+        leaveText.font = Font.regularSystemFont(12);
+        leaveText.textColor = TEXT_SECONDARY;
+    }
+
+    return w;
+}
+
+// ── Large Widget ───────────────────────────────────────────────────
+function buildLargeWidget(data) {
+    const w = buildMediumWidget(data);
+    w.addSpacer(8);
+
+    // Additional calendar events
+    if (data.calendar && data.calendar.length > 1) {
+        const divider = w.addText("─ Upcoming ─");
+        divider.font = Font.regularSystemFont(11);
+        divider.textColor = TEXT_SECONDARY;
+        w.addSpacer(4);
+
+        const maxEvents = Math.min(data.calendar.length, 5);
+        for (let i = 1; i < maxEvents; i++) {
+            const ev = data.calendar[i];
+            const row = w.addStack();
+            row.centerAlignContent();
+            const t = row.addText(formatTime(ev.start));
+            t.font = Font.monospacedDigitSystemFont(12, 0.3);
+            t.textColor = ACCENT;
+            row.addSpacer(6);
+            const n = row.addText(ev.subject || ev.title || "Event");
+            n.font = Font.regularSystemFont(12);
+            n.textColor = TEXT_PRIMARY;
+            n.lineLimit = 1;
+            w.addSpacer(2);
+        }
+    }
+
+    // Birthdays
+    if (data.birthdays && data.birthdays.length > 0) {
+        w.addSpacer(6);
+        const bdayHeader = w.addText("🎂 Birthdays");
+        bdayHeader.font = Font.mediumSystemFont(12);
+        bdayHeader.textColor = TEXT_SECONDARY;
+        w.addSpacer(2);
+
+        for (const b of data.birthdays.slice(0, 3)) {
+            const row = w.addStack();
+            const name = row.addText(b.name || "Birthday");
+            name.font = Font.regularSystemFont(12);
+            name.textColor = TEXT_PRIMARY;
+            w.addSpacer(2);
+        }
+    }
+
+    w.addSpacer();
+    return w;
+}
+
+// ── Error Widget ───────────────────────────────────────────────────
+function buildErrorWidget() {
+    const w = new ListWidget();
+    w.backgroundColor = WIDGET_BG;
+    w.setPadding(16, 16, 16, 16);
+    w.url = DASHBOARD_URL;
+
+    const title = w.addText("Morning Briefing");
+    title.font = Font.boldSystemFont(16);
+    title.textColor = TEXT_PRIMARY;
+    w.addSpacer(8);
+
+    const err = w.addText("Could not connect");
+    err.font = Font.regularSystemFont(14);
+    err.textColor = ACCENT;
+    w.addSpacer(4);
+
+    const hint = w.addText("Check API_URL and network");
+    hint.font = Font.regularSystemFont(12);
+    hint.textColor = TEXT_SECONDARY;
+
+    w.addSpacer();
+    return w;
+}
+
+// ── Notification ───────────────────────────────────────────────────
+async function sendNotification(data) {
+    const n = new Notification();
+    n.title = "Morning Briefing";
+    n.subtitle = "Your morning briefing is ready";
+
+    if (data && data.weather && !data.weather.error) {
+        const temp = Math.round(data.weather.temp_f || data.weather.temp || 0);
+        const desc = data.weather.description || data.weather.condition || "";
+        n.body = `${temp}° ${desc}`;
+        if (data.calendar && data.calendar.length > 0) {
+            const ev = data.calendar[0];
+            n.body += ` | Next: ${ev.subject || ev.title || "Event"} at ${formatTime(ev.start)}`;
+        }
+    } else {
+        n.body = "Tap to view your dashboard";
+    }
+
+    n.openURL = DASHBOARD_URL;
+    await n.schedule();
+}
+
+// ── Main ───────────────────────────────────────────────────────────
+async function main() {
+    const data = await fetchBriefing();
+
+    let widget;
+    if (!data) {
+        widget = buildErrorWidget();
+    } else if (config.widgetFamily === "large") {
+        widget = buildLargeWidget(data);
+    } else {
+        widget = buildMediumWidget(data);
+    }
+
+    if (data) {
+        await sendNotification(data);
+    }
+
+    if (config.runsInWidget) {
+        Script.setWidget(widget);
+    } else {
+        // Preview as medium when run from app
+        widget.presentMedium();
+    }
+
+    Script.complete();
+}
+
+await main();
