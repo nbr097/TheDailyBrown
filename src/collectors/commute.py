@@ -55,7 +55,7 @@ async def fetch_commute(
             meeting_dt = datetime.fromisoformat(first_meeting_time)
         except (ValueError, TypeError):
             meeting_dt = datetime.strptime(first_meeting_time, "%H:%M")
-        leave_dt = meeting_dt - timedelta(seconds=duration_seconds)
+        leave_dt = meeting_dt - timedelta(seconds=duration_seconds) - timedelta(minutes=5)
         result["leave_by"] = leave_dt.strftime("%-I:%M %p").lower()
 
     return result
