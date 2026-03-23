@@ -1,0 +1,162 @@
+from __future__ import annotations
+
+import json
+import time
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, Request
+from webauthn import (
+    generate_authentication_options,
+    generate_registration_options,
+    options_to_json,
+    verify_authentication_response,
+    verify_registration_response,
+)
+from webauthn.helpers.structs import (
+    AuthenticatorSelectionCriteria,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
+
+import src.config
+from src.database import get_db
+
+router = APIRouter()
+
+
+def _rp_id() -> str:
+    return src.config.settings.dashboard_domain
+
+
+def _origin() -> str:
+    return f"https://{_rp_id()}"
+
+# Simple in-memory challenge store (single-user app)
+_challenges: dict[str, bytes] = {}
+
+
+def _get_stored_credentials() -> list[dict[str, Any]]:
+    """Retrieve all stored WebAuthn credentials from the database."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, public_key, sign_count FROM webauthn_credentials"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@router.get("/auth/webauthn/register-options")
+async def register_options():
+    creds = _get_stored_credentials()
+    if len(creds) >= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="A credential is already registered. Only 1 allowed.",
+        )
+
+    options = generate_registration_options(
+        rp_id=_rp_id(),
+        rp_name="Morning Briefing",
+        user_name="admin",
+        user_display_name="Admin",
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            resident_key=ResidentKeyRequirement.PREFERRED,
+            user_verification=UserVerificationRequirement.PREFERRED,
+        ),
+    )
+
+    _challenges["registration"] = options.challenge
+
+    return json.loads(options_to_json(options))
+
+
+@router.post("/auth/webauthn/register")
+async def register(request: Request):
+    body = await request.json()
+
+    challenge = _challenges.pop("registration", None)
+    if not challenge:
+        raise HTTPException(status_code=400, detail="No registration in progress")
+
+    try:
+        verification = verify_registration_response(
+            credential=body,
+            expected_challenge=challenge,
+            expected_rp_id=_rp_id(),
+            expected_origin=_origin(),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO webauthn_credentials (id, public_key, sign_count, created_at) "
+        "VALUES (?, ?, ?, ?)",
+        (
+            verification.credential_id.hex(),
+            verification.credential_public_key,
+            verification.sign_count,
+            time.time(),
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    return {"verified": True}
+
+
+@router.get("/auth/webauthn/authenticate-options")
+async def authenticate_options():
+    creds = _get_stored_credentials()
+
+    allow_credentials = [
+        PublicKeyCredentialDescriptor(id=bytes.fromhex(c["id"])) for c in creds
+    ]
+
+    options = generate_authentication_options(
+        rp_id=_rp_id(),
+        allow_credentials=allow_credentials,
+        user_verification=UserVerificationRequirement.PREFERRED,
+    )
+
+    _challenges["authentication"] = options.challenge
+
+    return json.loads(options_to_json(options))
+
+
+@router.post("/auth/webauthn/authenticate")
+async def authenticate(request: Request):
+    body = await request.json()
+
+    challenge = _challenges.pop("authentication", None)
+    if not challenge:
+        raise HTTPException(status_code=400, detail="No authentication in progress")
+
+    credential_id_hex = body.get("id", "")
+    creds = _get_stored_credentials()
+    stored = next((c for c in creds if c["id"] == credential_id_hex), None)
+    if not stored:
+        raise HTTPException(status_code=400, detail="Unknown credential")
+
+    try:
+        verification = verify_authentication_response(
+            credential=body,
+            expected_challenge=challenge,
+            expected_rp_id=_rp_id(),
+            expected_origin=_origin(),
+            credential_public_key=stored["public_key"],
+            credential_current_sign_count=stored["sign_count"],
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    conn = get_db()
+    conn.execute(
+        "UPDATE webauthn_credentials SET sign_count = ? WHERE id = ?",
+        (verification.new_sign_count, credential_id_hex),
+    )
+    conn.commit()
+    conn.close()
+
+    return {"verified": True}
