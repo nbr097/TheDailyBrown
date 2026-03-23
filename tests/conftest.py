@@ -22,3 +22,7 @@ def mock_env(monkeypatch):
     }
     for k, v in env.items():
         monkeypatch.setenv(k, v)
+    # Refresh the settings singleton so it picks up monkeypatched env vars
+    from src.config import Settings
+    import src.config
+    src.config.settings = Settings()
