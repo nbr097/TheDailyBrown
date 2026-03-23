@@ -32,8 +32,9 @@ def _rp_id() -> str:
 def _origin() -> str:
     return f"https://{_rp_id()}"
 
-# Simple in-memory challenge store (single-user app)
-_challenges: dict[str, bytes] = {}
+# In-memory challenge store — keeps recent challenges valid (single-user app)
+# Uses a set of valid challenges instead of a single key to avoid race conditions
+_valid_challenges: set[bytes] = set()
 
 
 def _get_stored_credentials() -> list[dict[str, Any]]:
@@ -58,15 +59,15 @@ async def register_options():
     options = generate_registration_options(
         rp_id=_rp_id(),
         rp_name="Morning Briefing",
-        user_name="admin",
-        user_display_name="Admin",
+        user_name="nathan",
+        user_display_name="Nathan",
         authenticator_selection=AuthenticatorSelectionCriteria(
             resident_key=ResidentKeyRequirement.PREFERRED,
             user_verification=UserVerificationRequirement.PREFERRED,
         ),
     )
 
-    _challenges["registration"] = options.challenge
+    _valid_challenges.add(options.challenge)
 
     return json.loads(options_to_json(options))
 
@@ -75,14 +76,24 @@ async def register_options():
 async def register(request: Request):
     body = await request.json()
 
-    challenge = _challenges.pop("registration", None)
-    if not challenge:
+    # Find matching challenge from the credential's clientDataJSON
+    # The webauthn library handles challenge matching internally
+    # We just need to verify the challenge was one we issued
+    import base64
+    import json as _json
+    client_data = _json.loads(base64.urlsafe_b64decode(body["response"]["clientDataJSON"] + "=="))
+    challenge_b64 = client_data["challenge"]
+    # Decode the challenge from base64url
+    challenge_bytes = base64.urlsafe_b64decode(challenge_b64 + "==")
+
+    if challenge_bytes not in _valid_challenges:
         raise HTTPException(status_code=400, detail="No registration in progress")
+    _valid_challenges.discard(challenge_bytes)
 
     try:
         verification = verify_registration_response(
             credential=body,
-            expected_challenge=challenge,
+            expected_challenge=challenge_bytes,
             expected_rp_id=_rp_id(),
             expected_origin=_origin(),
         )
@@ -120,7 +131,7 @@ async def authenticate_options():
         user_verification=UserVerificationRequirement.PREFERRED,
     )
 
-    _challenges["authentication"] = options.challenge
+    _valid_challenges.add(options.challenge)
 
     return json.loads(options_to_json(options))
 
@@ -129,9 +140,16 @@ async def authenticate_options():
 async def authenticate(request: Request):
     body = await request.json()
 
-    challenge = _challenges.pop("authentication", None)
-    if not challenge:
+    # Extract challenge from clientDataJSON to match against our valid set
+    import base64
+    import json as _json
+    client_data = _json.loads(base64.urlsafe_b64decode(body["response"]["clientDataJSON"] + "=="))
+    challenge_b64 = client_data["challenge"]
+    challenge_bytes = base64.urlsafe_b64decode(challenge_b64 + "==")
+
+    if challenge_bytes not in _valid_challenges:
         raise HTTPException(status_code=400, detail="No authentication in progress")
+    _valid_challenges.discard(challenge_bytes)
 
     credential_id_hex = body.get("id", "")
     creds = _get_stored_credentials()
@@ -142,7 +160,7 @@ async def authenticate(request: Request):
     try:
         verification = verify_authentication_response(
             credential=body,
-            expected_challenge=challenge,
+            expected_challenge=challenge_bytes,
             expected_rp_id=_rp_id(),
             expected_origin=_origin(),
             credential_public_key=stored["public_key"],
