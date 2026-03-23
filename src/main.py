@@ -31,6 +31,7 @@ from src.auth.webauthn import router as webauthn_router
 from src.routes.admin import router as admin_router
 from src.routes.data import router as data_router
 from src.routes.summary import router as summary_router
+from src.routes.webhook import router as webhook_router
 from src.scheduler import create_scheduler, get_system_health, run_cache_job
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ app.include_router(admin_router)
 app.include_router(data_router)
 app.include_router(summary_router)
 app.include_router(webauthn_router)
+app.include_router(webhook_router)
 
 
 dashboard_path = os.path.join(os.path.dirname(__file__), "..", "dashboard")
