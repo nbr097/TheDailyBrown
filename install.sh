@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-REPO_URL="https://github.com/your-user/morning-briefing.git"
-INSTALL_DIR="${INSTALL_DIR:-$HOME/morning-briefing}"
+REPO_URL="https://github.com/nbr097/TheDailyBrown.git"
+INSTALL_DIR="${INSTALL_DIR:-$HOME/TheDailyBrown}"
 
 # ── Colors ────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
@@ -61,6 +61,24 @@ prompt_credentials() {
     echo "=== Credential Setup ==="
     echo ""
 
+    # ── Cloudflare KV fetch (optional) ──
+    read -rp "Do you have a Cloudflare secrets install token? [y/N]: " HAS_CF_TOKEN
+    if [[ "$HAS_CF_TOKEN" =~ ^[Yy] ]]; then
+        read -rp "Install token: " CF_INSTALL_TOKEN
+        read -rp "Secrets URL [https://secrets.nicholasbrown.me]: " CF_SECRETS_URL
+        CF_SECRETS_URL="${CF_SECRETS_URL:-https://secrets.nicholasbrown.me}"
+        info "Fetching credentials from Cloudflare..."
+        if curl -sf -H "Authorization: Bearer $CF_INSTALL_TOKEN" "$CF_SECRETS_URL/" > "$INSTALL_DIR/.env"; then
+            chmod 600 "$INSTALL_DIR/.env"
+            info ".env fetched from Cloudflare KV."
+            # Invalidate the token
+            curl -sf -X DELETE -H "Authorization: Bearer $CF_INSTALL_TOKEN" "$CF_SECRETS_URL/" > /dev/null 2>&1 || true
+            return
+        else
+            warn "Failed to fetch from Cloudflare. Falling back to manual entry."
+        fi
+    fi
+
     # OpenWeatherMap
     read -rp "OpenWeatherMap API key: " OWM_KEY
 
@@ -108,55 +126,71 @@ else:
     fi
 
     echo ""
+    # Microsoft 365 Client Secret
+    read -rp "Microsoft 365 Client Secret (leave blank if not needed): " MS_CLIENT_SECRET
+
     # iCloud
-    read -rp "iCloud email (Apple ID): " ICLOUD_EMAIL
+    read -rp "iCloud email (Apple ID): " ICLOUD_USERNAME
     read -rsp "iCloud app-specific password: " ICLOUD_APP_PASSWORD
     echo ""
 
     # Google Maps
     read -rp "Google Maps API key: " GOOGLE_MAPS_KEY
 
-    # Destination address for commute
-    read -rp "Work/destination address for commute: " DESTINATION_ADDRESS
+    # Work address for commute
+    read -rp "Work/destination address for commute: " WORK_ADDRESS
+
+    # Dashboard domain
+    read -rp "Dashboard domain (e.g., dashboard.nicholasbrown.me): " DASHBOARD_DOMAIN
 
     # Cloudflare Tunnel
     read -rp "Cloudflare Tunnel token (leave blank to skip): " CF_TUNNEL_TOKEN
 
+    # Cache schedule
+    read -rp "Cache schedule hour [4]: " CACHE_SCHEDULE_HOUR
+    CACHE_SCHEDULE_HOUR="${CACHE_SCHEDULE_HOUR:-4}"
+    read -rp "Cache schedule minute [0]: " CACHE_SCHEDULE_MINUTE
+    CACHE_SCHEDULE_MINUTE="${CACHE_SCHEDULE_MINUTE:-0}"
+
     # Bearer token
-    BEARER_TOKEN=$(openssl rand -hex 32)
-    info "Generated bearer token: $BEARER_TOKEN"
+    API_BEARER_TOKEN=$(openssl rand -hex 32)
+    info "Generated bearer token: $API_BEARER_TOKEN"
 }
 
 # ── 4. Write .env ───────────────────────────────────────────────────
 write_env() {
     cat > "$INSTALL_DIR/.env" <<ENVEOF
-# Morning Briefing Configuration — generated $(date -Iseconds)
+# TheDailyBrown Configuration — generated $(date -Iseconds)
 
 # Auth
-BEARER_TOKEN=${BEARER_TOKEN}
+API_BEARER_TOKEN=${API_BEARER_TOKEN}
 
 # OpenWeatherMap
-OPENWEATHER_API_KEY=${OWM_KEY}
+OPENWEATHERMAP_API_KEY=${OWM_KEY}
 
 # Microsoft Graph (Outlook)
 MS_CLIENT_ID=${MS_CLIENT_ID}
+MS_CLIENT_SECRET=${MS_CLIENT_SECRET}
 MS_TENANT_ID=${MS_TENANT_ID}
-MS_ACCESS_TOKEN=${MS_ACCESS_TOKEN}
-MS_REFRESH_TOKEN=${MS_REFRESH_TOKEN}
 
 # iCloud (CalDAV / CardDAV)
-ICLOUD_EMAIL=${ICLOUD_EMAIL}
+ICLOUD_USERNAME=${ICLOUD_USERNAME}
 ICLOUD_APP_PASSWORD=${ICLOUD_APP_PASSWORD}
 
 # Google Maps
 GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_KEY}
-DESTINATION_ADDRESS=${DESTINATION_ADDRESS}
+WORK_ADDRESS=${WORK_ADDRESS}
+
+# Dashboard
+DASHBOARD_DOMAIN=${DASHBOARD_DOMAIN}
 
 # Cloudflare Tunnel
 CLOUDFLARE_TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
 
-# Timezone
-TZ=America/New_York
+# Schedule & Timezone
+CACHE_SCHEDULE_HOUR=${CACHE_SCHEDULE_HOUR}
+CACHE_SCHEDULE_MINUTE=${CACHE_SCHEDULE_MINUTE}
+TIMEZONE=Australia/Brisbane
 ENVEOF
     chmod 600 "$INSTALL_DIR/.env"
     info ".env written to $INSTALL_DIR/.env"
@@ -191,7 +225,7 @@ print_summary() {
     echo ""
     echo "  Dashboard:    http://localhost:8000/dashboard/"
     echo "  API Health:   http://localhost:8000/health"
-    echo "  Bearer Token: ${BEARER_TOKEN}"
+    echo "  Bearer Token: ${API_BEARER_TOKEN}"
     echo ""
     echo "  Management commands:"
     echo "    ./manage.sh status      — health check"

@@ -1,0 +1,10 @@
+name = "thedailybrown-secrets"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "SECRETS"
+id = ""  # Fill in after running: wrangler kv:namespace create SECRETS
+
+[triggers]
+routes = ["secrets.nicholasbrown.me/*"]

@@ -85,6 +85,12 @@ claude
 
 Or follow the detailed phases in `CLAUDE.md`.
 
+## Secure Credentials (Cloudflare KV)
+
+Credentials are stored in Cloudflare Workers KV and pulled to the Pi during install via a one-time-use token. No API keys are pasted in terminals or stored in plain text during setup.
+
+See `cloudflare/SETUP.md` for setup instructions.
+
 ### On your iPhone
 
 1. Install **Scriptable** from the App Store

@@ -73,6 +73,19 @@ git clone https://github.com/nbr097/TheDailyBrown.git
 cd TheDailyBrown
 ```
 
+### Option A: Pull credentials from Cloudflare (recommended)
+
+If the secrets Worker has been set up (see `cloudflare/SETUP.md`):
+
+```bash
+curl -s -H "Authorization: Bearer <INSTALL_TOKEN>" https://secrets.nicholasbrown.me/ > .env
+chmod 600 .env
+```
+
+This pulls all credentials from Cloudflare KV in one command. The install token is single-use — it self-invalidates after the first pull.
+
+If this isn't set up, create `.env` manually from `.env.example` (see below).
+
 ### Fix install.sh before running
 
 The install.sh has env var names that don't match what the app expects. Before running it, apply these fixes:
