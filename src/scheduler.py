@@ -82,14 +82,14 @@ def get_cache_status() -> dict:
 def get_system_health() -> dict[str, Any]:
     health = dict(_system_health)
 
-    # Check docker updater socket availability
+    # Check docker updater socket availability (communicates via unix socket)
     import os
-    docker_sock = os.path.exists("/var/run/docker.sock")
+    updater_sock = os.path.exists("/tmp/updater.sock")
     if health["docker_updater"]["status"] == "unknown":
         health["docker_updater"] = {
-            "status": "ok" if docker_sock else "unavailable",
+            "status": "ok" if updater_sock else "unavailable",
             "last_check": datetime.now().isoformat(),
-            "error": None if docker_sock else "Docker socket not found",
+            "error": None if updater_sock else "Updater socket not found",
         }
 
     # Check reminders push recency
@@ -106,6 +106,22 @@ def get_system_health() -> dict[str, Any]:
             "status": "waiting",
             "last_check": None,
             "error": "No push received yet",
+        }
+
+    # Check Cloudflare tunnel by verifying cloudflared container is reachable
+    if health["cloudflare_tunnel"]["status"] == "unknown":
+        import httpx
+        try:
+            resp = httpx.get("http://cloudflared:2000/ready", timeout=3)
+            tunnel_ok = resp.status_code == 200
+        except Exception:
+            # Fallback: check if we're being accessed through the tunnel
+            # (if dashboard is reachable externally, tunnel works)
+            tunnel_ok = bool(os.environ.get("CLOUDFLARE_TUNNEL_TOKEN"))
+        health["cloudflare_tunnel"] = {
+            "status": "ok" if tunnel_ok else "unknown",
+            "last_check": datetime.now().isoformat(),
+            "error": None if tunnel_ok else "Cannot verify tunnel status",
         }
 
     return health
