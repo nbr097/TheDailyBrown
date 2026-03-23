@@ -36,6 +36,13 @@ let authToken = null;
 // ---------- page load: attempt auth ----------
 
 window.addEventListener('DOMContentLoaded', async () => {
+    // If we just registered, skip auth and go straight to dashboard
+    if (sessionStorage.getItem('just_registered')) {
+        sessionStorage.removeItem('just_registered');
+        onAuthSuccess();
+        return;
+    }
+
     authStatus.textContent = 'Checking credentials...';
     try {
         await authenticate();
@@ -70,8 +77,10 @@ async function startRegister() {
     btn.innerHTML = '<div class="spinner"></div><span>Registering...</span>';
     try {
         await register();
-        // Registration proves identity — go straight to dashboard
-        onAuthSuccess();
+        // Registration proves identity — set flag and reload
+        // This avoids Safari auto-prompting a passkey sign-in after create()
+        sessionStorage.setItem('just_registered', 'true');
+        window.location.reload();
         return;
     } catch (err) {
         showAuthError(err.message || 'Registration failed');
