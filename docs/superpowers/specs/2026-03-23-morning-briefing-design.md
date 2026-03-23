@@ -101,6 +101,7 @@ User taps widget → Safari opens morning.<domain>.com → Face ID → full dash
   - **AI:** TechCrunch AI, The Verge AI
   - **Movies:** Collider, Screen Rant
   - **Tesla:** Electrek, Teslarati
+-**Stremio** https://blog.stremio.com (sort my latest date first)
 - 5-6 articles per category
 - Phosphor icons: `Newspaper`, `Robot`, `FilmSlate`, `Lightning`
 
@@ -129,7 +130,7 @@ User taps widget → Safari opens morning.<domain>.com → Face ID → full dash
 
 ### Scriptable Widget (iOS Home Screen)
 
-Medium-size widget. Compact layout:
+Medium-size widget but can be resized into a large-size widget. Compact layout:
 - **Top row:** Current time, date, location name
 - **Middle row:** Weather temp + condition icon, precipitation chance
 - **Bottom row:** Next calendar event + commute time, "leave by" time
