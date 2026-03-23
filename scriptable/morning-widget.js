@@ -505,7 +505,7 @@ function buildLargeWidget(data) {
     const hasFlagged = data.flagged_emails && data.flagged_emails.length > 0;
 
     if (hasNews) {
-        buildNewsCard(w, data, 4);
+        buildNewsCard(w, data, 5);
     }
 
     // ── Row 6: Reminders + Flagged side by side ──
