@@ -14,6 +14,7 @@ from src.scheduler import (
     get_cached_news,
     get_cached_reminders,
     get_cached_flagged,
+    get_cached_unread,
     get_cache_status,
     _update_system_status,
 )
@@ -68,5 +69,6 @@ async def summary(
         "news": get_cached_news(),
         "reminders": get_cached_reminders(),
         "flagged_emails": get_cached_flagged(),
+        "unread_emails": get_cached_unread(),
         "cache_status": get_cache_status(),
     }

@@ -19,6 +19,7 @@ _cache: dict[str, Any] = {
     "birthdays": [],
     "news": {},
     "flagged_emails": [],
+    "unread_emails": [],
     "last_run": None,
     "errors": [],
 }
@@ -68,6 +69,22 @@ def get_cached_news() -> dict:
 
 def get_cached_flagged() -> list[dict]:
     return _cache["flagged_emails"]
+
+
+def get_cached_unread() -> list[dict]:
+    return _cache["unread_emails"]
+
+
+def set_cached_outlook_data(
+    calendar: list[dict],
+    flagged_emails: list[dict],
+    unread_emails: list[dict],
+) -> None:
+    """Store Outlook data pushed from iOS Shortcut. Preserves personal calendar events."""
+    personal = [e for e in _cache["calendar"] if e.get("source") != "work"]
+    _cache["calendar"] = personal + calendar
+    _cache["flagged_emails"] = flagged_emails
+    _cache["unread_emails"] = unread_emails
 
 
 def get_cached_reminders() -> list[dict]:
