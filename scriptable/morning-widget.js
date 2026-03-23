@@ -351,13 +351,15 @@ function buildNewsCard(parent, data, maxItems) {
     for (let i = 0; i < count; i++) {
         const row = card.addStack();
         row.topAlignContent();
-        sfImg("circle.fill", 5, ACCENT_SOFT, row);
+        const numText = row.addText(`${i + 1}`);
+        numText.font = Font.boldMonospacedSystemFont(9);
+        numText.textColor = ACCENT_SOFT;
         row.addSpacer(6);
         const t = row.addText(headlines[i].title || "");
         t.font = Font.regularSystemFont(11);
         t.textColor = new Color("#ccccdd");
-        t.lineLimit = 2;
-        if (i < count - 1) card.addSpacer(3);
+        t.lineLimit = 1;
+        if (i < count - 1) card.addSpacer(4);
     }
 
     return card;
