@@ -154,10 +154,18 @@ async def authenticate(request: Request):
         raise HTTPException(status_code=400, detail="No authentication in progress")
     _valid_challenges.discard(challenge_bytes)
 
-    credential_id_hex = body.get("id", "")
+    # Browser sends credential ID as base64url, DB stores as hex
+    credential_id_b64 = body.get("id", "")
+    try:
+        credential_id_hex = base64.urlsafe_b64decode(credential_id_b64 + "==").hex()
+    except Exception:
+        credential_id_hex = credential_id_b64
+
     creds = _get_stored_credentials()
     stored = next((c for c in creds if c["id"] == credential_id_hex), None)
     if not stored:
+        logger.error(f"Unknown credential. Browser sent: {credential_id_b64}, converted to hex: {credential_id_hex}")
+        logger.error(f"Stored cred IDs: {[c['id'] for c in creds]}")
         raise HTTPException(status_code=400, detail="Unknown credential")
 
     try:
