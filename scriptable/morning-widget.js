@@ -128,31 +128,124 @@ function buildMediumWidget(data) {
 
     w.addSpacer(6);
 
+    // Hourly forecast row
+    if (data.weather && data.weather.hourly && data.weather.hourly.length > 0) {
+        const hourlyRow = w.addStack();
+        hourlyRow.spacing = 10;
+        const hours = data.weather.hourly.slice(0, 6);
+        for (const h of hours) {
+            const col = hourlyRow.addStack();
+            col.layoutVertically();
+            col.centerAlignContent();
+
+            const dt = h.dt ? new Date(h.dt * 1000) : null;
+            const timeStr = dt ? dt.toLocaleTimeString([], { hour: "numeric", hour12: true }).replace(" ", "") : "";
+            const tLabel = col.addText(timeStr);
+            tLabel.font = Font.regularSystemFont(9);
+            tLabel.textColor = TEXT_SECONDARY;
+
+            const sfName = weatherSymbol(h.condition);
+            const sym = SFSymbol.named(sfName);
+            if (sym) {
+                const img = col.addImage(sym.image);
+                img.imageSize = new Size(14, 14);
+                img.tintColor = TEXT_SECONDARY;
+            }
+
+            const tTemp = col.addText(`${Math.round(h.temp || 0)}°`);
+            tTemp.font = Font.mediumSystemFont(11);
+            tTemp.textColor = TEXT_PRIMARY;
+        }
+    }
+
+    w.addSpacer(6);
+
+    // Commute
+    if (data.commute && data.commute.duration_text) {
+        const commuteRow = w.addStack();
+        commuteRow.centerAlignContent();
+
+        const carSym = SFSymbol.named("car.fill");
+        if (carSym) {
+            const carImg = commuteRow.addImage(carSym.image);
+            carImg.imageSize = new Size(14, 14);
+            carImg.tintColor = TEXT_SECONDARY;
+            commuteRow.addSpacer(4);
+        }
+
+        const commuteText = commuteRow.addText(
+            `${data.commute.duration_text} — ${data.commute.distance_text || ''}`
+        );
+        commuteText.font = Font.regularSystemFont(12);
+        commuteText.textColor = TEXT_SECONDARY;
+
+        if (data.commute.leave_by) {
+            commuteRow.addSpacer(6);
+            const leaveText = commuteRow.addText(`Leave by ${data.commute.leave_by}`);
+            leaveText.font = Font.mediumSystemFont(12);
+            leaveText.textColor = ACCENT;
+        }
+    }
+
+    w.addSpacer(4);
+
     // Next event
     if (data.calendar && data.calendar.length > 0) {
         const ev = data.calendar[0];
         const evRow = w.addStack();
         evRow.centerAlignContent();
+
+        const calSym = SFSymbol.named("calendar");
+        if (calSym) {
+            const calImg = evRow.addImage(calSym.image);
+            calImg.imageSize = new Size(14, 14);
+            calImg.tintColor = ACCENT;
+            evRow.addSpacer(4);
+        }
+
         const evTime = evRow.addText(formatTime(ev.start));
-        evTime.font = Font.monospacedDigitSystemFont(13, 0.3);
+        evTime.font = Font.monospacedDigitSystemFont(12, 0.3);
         evTime.textColor = ACCENT;
         evRow.addSpacer(6);
         const evName = evRow.addText(ev.subject || ev.title || "Event");
-        evName.font = Font.mediumSystemFont(13);
+        evName.font = Font.mediumSystemFont(12);
         evName.textColor = TEXT_PRIMARY;
         evName.lineLimit = 1;
+    } else {
+        const noEvRow = w.addStack();
+        noEvRow.centerAlignContent();
+        const calSym = SFSymbol.named("calendar");
+        if (calSym) {
+            const calImg = noEvRow.addImage(calSym.image);
+            calImg.imageSize = new Size(14, 14);
+            calImg.tintColor = TEXT_SECONDARY;
+            noEvRow.addSpacer(4);
+        }
+        const noEvText = noEvRow.addText("No events today");
+        noEvText.font = Font.regularSystemFont(12);
+        noEvText.textColor = TEXT_SECONDARY;
     }
 
-    // Commute leave-by
-    if (data.commute && data.commute.leave_by) {
-        const commuteRow = w.addStack();
-        const leaveText = commuteRow.addText(
-            `Leave by ${data.commute.leave_by} — ${data.commute.duration_text || ''}`
-        );
-        leaveText.font = Font.regularSystemFont(12);
-        leaveText.textColor = TEXT_SECONDARY;
+    // Birthdays
+    if (data.birthdays && data.birthdays.length > 0) {
+        w.addSpacer(4);
+        const bdayRow = w.addStack();
+        bdayRow.centerAlignContent();
+        const giftSym = SFSymbol.named("gift.fill");
+        if (giftSym) {
+            const giftImg = bdayRow.addImage(giftSym.image);
+            giftImg.imageSize = new Size(14, 14);
+            giftImg.tintColor = ACCENT;
+            bdayRow.addSpacer(4);
+        }
+        const names = data.birthdays.map(b => b.name).join(", ");
+        const bdayText = bdayRow.addText(names);
+        bdayText.font = Font.mediumSystemFont(12);
+        bdayText.textColor = TEXT_PRIMARY;
+        bdayText.lineLimit = 1;
     }
 
+    w.addSpacer();
     return w;
 }
 
