@@ -151,39 +151,45 @@ function hideError() {
 function renderWeather(w) {
     if (!w) return;
     const cur = document.getElementById('weather-current');
-    const iconClass = weatherIcon(w.condition);
+    // API returns { current: { temp, feels_like, condition, ... }, hourly: [...] }
+    const current = w.current || {};
+    const iconClass = weatherIcon(current.condition);
 
     cur.innerHTML = `
         <div class="flex items-center gap-3">
             <i class="ph ${iconClass} text-4xl text-amber-300"></i>
             <div>
-                <span class="text-3xl font-bold">${Math.round(w.temp || 0)}&deg;</span>
-                <p class="text-xs text-slate-400">${w.condition || ''}</p>
+                <span class="text-3xl font-bold">${Math.round(current.temp || 0)}&deg;</span>
+                <p class="text-xs text-slate-400">${current.description || current.condition || ''}</p>
             </div>
         </div>
         <div class="text-right text-sm text-slate-400">
-            <p>Feels ${Math.round(w.feels_like || 0)}&deg;</p>
+            <p>Feels ${Math.round(current.feels_like || 0)}&deg;</p>
         </div>
     `;
 
     const details = document.getElementById('weather-details');
+    const windKmh = Math.round((current.wind_speed || 0) * 3.6);
     details.innerHTML = `
-        <span class="flex items-center gap-1"><i class="ph ph-drop"></i> ${w.humidity || 0}%</span>
-        <span class="flex items-center gap-1"><i class="ph ph-wind"></i> ${w.wind_speed || 0} mph</span>
+        <span class="flex items-center gap-1"><i class="ph ph-drop"></i> ${current.humidity || 0}%</span>
+        <span class="flex items-center gap-1"><i class="ph ph-wind"></i> ${windKmh} km/h</span>
     `;
 
     const hourly = document.getElementById('weather-hourly');
     if (w.hourly && w.hourly.length) {
         hourly.innerHTML = w.hourly.slice(0, 8).map(h => {
             const hIcon = weatherIcon(h.condition);
-            const precipClass = (h.precipitation_chance || 0) > 30 ? 'precip-high' : 'text-slate-500';
+            const precipClass = (h.precipitation_chance || 0) > 0.3 ? 'precip-high' : 'text-slate-500';
+            const precipPct = Math.round((h.precipitation_chance || 0) * 100);
+            const dt = h.dt ? new Date(h.dt * 1000) : null;
+            const timeStr = dt ? dt.toLocaleTimeString('en-AU', { hour: 'numeric', hour12: true }) : '';
             return `
                 <div class="flex-shrink-0 text-center space-y-1 w-14">
-                    <p class="text-xs text-slate-400">${h.time || ''}</p>
+                    <p class="text-xs text-slate-400">${timeStr}</p>
                     <i class="ph ${hIcon} text-lg"></i>
                     <p class="text-sm font-medium">${Math.round(h.temp || 0)}&deg;</p>
                     <p class="text-xs ${precipClass}">
-                        <i class="ph ph-drop text-[10px]"></i> ${h.precipitation_chance || 0}%
+                        <i class="ph ph-drop text-[10px]"></i> ${precipPct}%
                     </p>
                 </div>
             `;
@@ -196,18 +202,18 @@ function renderWeather(w) {
 // ---------- Render: Commute ----------
 
 function renderCommute(c) {
-    if (!c) return;
+    if (!c || c.error) return;
     const el = document.getElementById('commute-content');
     el.innerHTML = `
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <i class="ph ph-clock text-indigo-400"></i>
-                <span class="text-lg font-semibold">${c.drive_time || '--'}</span>
+                <span class="text-lg font-semibold">${c.duration_text || '--'}</span>
             </div>
             <span class="text-sm text-slate-400">Leave by ${c.leave_by || '--'}</span>
         </div>
         <p class="text-xs text-slate-500 mt-1">
-            <i class="ph ph-map-pin"></i> ${c.destination || 'Office'}
+            <i class="ph ph-map-pin"></i> ${c.distance_text || ''} to Office
         </p>
     `;
 }
