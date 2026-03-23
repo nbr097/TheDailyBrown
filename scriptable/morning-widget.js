@@ -204,7 +204,7 @@ function buildMediumWidget(data) {
         }
 
         const evTime = evRow.addText(formatTime(ev.start));
-        evTime.font = Font.monospacedDigitSystemFont(12, 0.3);
+        evTime.font = Font.mediumMonospacedSystemFont(12);
         evTime.textColor = ACCENT;
         evRow.addSpacer(6);
         const evName = evRow.addText(ev.subject || ev.title || "Event");
@@ -267,7 +267,7 @@ function buildLargeWidget(data) {
             const row = w.addStack();
             row.centerAlignContent();
             const t = row.addText(formatTime(ev.start));
-            t.font = Font.monospacedDigitSystemFont(12, 0.3);
+            t.font = Font.mediumMonospacedSystemFont(12);
             t.textColor = ACCENT;
             row.addSpacer(6);
             const n = row.addText(ev.subject || ev.title || "Event");
