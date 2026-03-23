@@ -1,4 +1,4 @@
-# Work Email Integration via EWS
+# Work Email Integration
 
 ## Goal
 
@@ -9,16 +9,19 @@ Connect to Nic's work Microsoft 365 email without Azure App Registration, fetchi
 - No admin access to create Azure AD App Registrations
 - Can sign into M365 via browser and phone
 - Organization is Microsoft 365 / Exchange
+- Microsoft disabled Basic Auth for EWS across all M365 tenants (October 2023)
 
 ## Approach
 
-**Primary: EWS (Exchange Web Services) via `exchangelib`**
+**Primary: iOS Shortcut Push**
 
-Authenticate with email + password directly against Exchange. No App Registration, no OAuth flow, no admin consent needed. If the org has disabled Basic Auth or legacy auth, fall back to iOS Shortcut push.
+An iOS Shortcut reads Outlook calendar and email via native iOS APIs, then POSTs the data to the briefing API -- identical pattern to the existing reminders push. This is the recommended path because it bypasses all server-side auth issues entirely. If Outlook works on the phone, this works.
 
-**Fallback: iOS Shortcut Push**
+**Secondary: EWS (Exchange Web Services) -- test first**
 
-An iOS Shortcut reads Outlook calendar and email via native iOS APIs, then POSTs the data to the briefing API -- identical pattern to the existing reminders push.
+Try EWS with `exchangelib` as a quick test. Microsoft disabled Basic Auth in Oct 2023, so this will likely fail for M365 tenants. However, some orgs have exceptions or run hybrid Exchange. Worth a 5-minute test before committing to the Shortcut path.
+
+**Note on Basic Auth:** If EWS Basic Auth is blocked (expected), `exchangelib` also supports OAuth2 via `OAuth2Credentials`, but this still requires an App Registration -- which we don't have. So if EWS Basic Auth fails, the iOS Shortcut is the only viable path.
 
 ## Data Fetched
 
@@ -58,22 +61,21 @@ An iOS Shortcut reads Outlook calendar and email via native iOS APIs, then POSTs
 
 ## Architecture
 
-### EWS Path (Primary)
+### iOS Shortcut Path (Primary)
+
+```
+Phone wakes -> iOS Shortcut reads Outlook calendar + mail
+            -> POST /data/outlook (bearer auth)
+            -> stored in memory via set_cached_outlook_data()
+            -> same cache consumed by summary route
+```
+
+### EWS Path (Secondary -- test first)
 
 ```
 4am scheduler -> outlook_ews.py -> EWS API (email + password)
-                                -> calendar events
-                                -> flagged emails
-                                -> unread emails (last 24hrs)
+                                -> calendar, flagged, unread
                                -> cached in memory
-```
-
-### iOS Shortcut Path (Fallback)
-
-```
-Phone wakes -> iOS Shortcut reads Outlook
-            -> POST /data/outlook (bearer auth)
-            -> stored in memory (same cache shape)
 ```
 
 The rest of the system (summary route, dashboard, widget) consumes the same data shape regardless of which path provides it.
@@ -82,30 +84,53 @@ The rest of the system (summary route, dashboard, widget) consumes the same data
 
 | File | Change |
 |---|---|
-| `src/collectors/outlook_ews.py` | **New.** EWS collector with three functions: `fetch_ews_calendar()`, `fetch_ews_flagged_emails()`, `fetch_ews_unread_emails()` |
-| `src/collectors/outlook.py` | Kept as-is. Not deleted in case EWS fails and we need to revert. |
-| `src/scheduler.py` | Import from `outlook_ews` instead of `outlook`. Add `unread_emails` to `_cache`. |
-| `src/routes/summary.py` | Add `unread_emails` field to the response dict. |
-| `src/routes/data.py` | Add `POST /data/outlook` endpoint for iOS Shortcut fallback. Accepts calendar, flagged_emails, and unread_emails arrays. |
-| `src/config.py` | Add `ms_email: str` and `ms_password: str` settings (optional, for EWS). |
-| `.env.example` | Add `MS_EMAIL` and `MS_PASSWORD` entries. |
+| `src/collectors/outlook_ews.py` | **New.** EWS collector with three functions: `fetch_ews_calendar()`, `fetch_ews_flagged_emails()`, `fetch_ews_unread_emails()`. Only used if EWS auth works. |
+| `src/collectors/outlook.py` | Kept as-is. Not deleted -- existing Graph API code preserved for rollback. |
+| `src/scheduler.py` | Add `unread_emails` to `_cache` dict. Add `get_cached_unread()` accessor. Add `set_cached_outlook_data()` setter for iOS Shortcut push. Conditionally import from `outlook_ews` if EWS credentials are configured. |
+| `src/routes/summary.py` | Add `unread_emails: get_cached_unread()` to the response dict. |
+| `src/routes/data.py` | Add `POST /data/outlook` endpoint for iOS Shortcut push. Accepts `calendar`, `flagged_emails`, and `unread_emails` arrays. Calls `set_cached_outlook_data()` to store in cache. |
+| `src/config.py` | Add optional `ms_email: str = ""` and `ms_password: str = ""` settings for EWS. |
+| `.env.example` | Add `MS_EMAIL` and `MS_PASSWORD` entries (marked optional). |
+| `requirements.txt` | Add `exchangelib` dependency. |
+| `Dockerfile` | Add `libxml2-dev libxslt-dev` system deps if needed for `exchangelib` on ARM. |
 | `dashboard/index.html` | Add unread emails card below flagged emails card. |
-| `dashboard/js/app.js` | Add `renderUnreadEmails()` function, call it from `loadDashboard()`. |
+| `dashboard/js/app.js` | Add `renderUnreadEmails()` function using `from_name` field explicitly. Fix existing `renderFlaggedEmails()` to also use `from_name` (currently reads `e.from` which doesn't match the API shape). Call both from `loadDashboard()`. |
 | `scriptable/morning-widget.js` | Add unread emails section to large widget (count + top 2-3 subjects). |
 
-## New File: `src/collectors/outlook_ews.py`
+## Scheduler Cache Changes
 
-Uses `exchangelib` library. Key design decisions:
+Add to `_cache` dict:
+```python
+"unread_emails": [],
+```
 
-- **Auth:** `exchangelib.Credentials(email, password)` with autodiscover
-- **Calendar:** Query today's events from all calendars, return same shape as current `outlook.py`
-- **Flagged emails:** Filter inbox by `is_flagged`, return subject + sender + date
-- **Unread emails (24hrs):** Filter inbox by `is_read=False` and `datetime_received > now - 24hrs`, return subject + sender + date
-- **Error handling:** If EWS connection fails (auth blocked, network), log error and update health status. Don't crash the cache job.
+Add accessor:
+```python
+def get_cached_unread() -> list[dict]:
+    return _cache["unread_emails"]
+```
+
+Add setter for iOS Shortcut push:
+```python
+def set_cached_outlook_data(
+    calendar: list[dict],
+    flagged_emails: list[dict],
+    unread_emails: list[dict],
+) -> None:
+    # Merge work calendar events with existing personal events
+    personal = [e for e in _cache["calendar"] if e.get("source") != "work"]
+    _cache["calendar"] = personal + calendar
+    _cache["flagged_emails"] = flagged_emails
+    _cache["unread_emails"] = unread_emails
+```
+
+## Health System
+
+Add new health entry `exchange_ews` (separate from `microsoft_graph` since they are different auth paths). Only tracked if EWS credentials are configured. If using iOS Shortcut path only, the health status is tracked via the push endpoint (similar to `ios_reminders_push` -- shows "waiting" until first push, then "ok").
 
 ## New Endpoint: `POST /data/outlook`
 
-Fallback for iOS Shortcut push. Same pattern as `/data/reminders`.
+Same pattern as existing `/data/reminders`.
 
 ```
 POST /data/outlook
@@ -119,42 +144,46 @@ Content-Type: application/json
 }
 ```
 
-Stores data in the same in-memory cache the scheduler uses.
+Calls `set_cached_outlook_data()` from `scheduler.py` to store data. Updates health status for `microsoft_graph` to "ok" on successful push.
 
 ## Dashboard: Unread Emails Section
 
 New card below "Flagged Emails" in `index.html`:
-- Header: "Unread Emails (24h)" with envelope icon
-- Each item: sender name + subject, one line per email
-- Shows count badge in the header (e.g., "12")
+- Header: "Unread Emails (24h)" with envelope icon and count badge (e.g., "12")
+- Each item: sender name (bold) + subject, one line per email
 - Truncate at 10 items with "and X more..." text
+
+**Bug fix:** Existing `renderFlaggedEmails()` reads `e.from || e.sender` but the API returns `from_name` and `from_address`. Fix to use `e.from_name` explicitly.
 
 ## Widget: Unread Emails
 
 In the large widget, add an unread count below flagged emails:
-- Show as a compact line: envelope icon + "12 unread" or "No new mail"
+- Compact line: envelope icon + "12 unread" or "No new mail"
 - Only show if count > 0 to save space
 
 ## Configuration
 
-New `.env` variables:
+New `.env` variables (both optional):
 
 ```
+# Optional: EWS auth (test first -- likely blocked by M365 Basic Auth deprecation)
 MS_EMAIL=nic.brown@company.com
 MS_PASSWORD=your-password-or-app-password
 ```
 
-Both optional. If not set, the EWS collector is skipped and the system relies on the iOS Shortcut fallback (or the existing Graph API if configured).
+**Security note:** If using EWS, prefer an app-specific password over the main account password. The password is stored in `.env` which is not committed to git and has `chmod 600` on the Pi.
+
+If neither `MS_EMAIL` nor `MS_PASSWORD` is set, the EWS collector is skipped entirely. The system relies on the iOS Shortcut push or the existing Graph API (if configured).
 
 ## Testing Strategy
 
-1. **Quick validation:** Try EWS connection with Nic's credentials on the Pi. If it connects, proceed. If blocked, pivot to iOS Shortcut.
-2. **Unit tests:** Mock `exchangelib` responses for calendar, flagged, and unread queries.
-3. **Integration:** Verify the summary endpoint includes `unread_emails` and the dashboard renders it.
+1. **Quick EWS validation (5 min):** Try `exchangelib` connection with credentials on the Pi. If it connects, use EWS. If blocked (expected), proceed with iOS Shortcut only.
+2. **Unit tests:** Mock EWS responses for calendar, flagged, and unread queries. Test the `/data/outlook` endpoint with sample payloads. Test `set_cached_outlook_data()` merges work/personal calendar correctly.
+3. **Integration:** Verify the summary endpoint includes `unread_emails` and the dashboard renders it correctly.
 
 ## Rollback
 
-If EWS doesn't work:
-- The existing `outlook.py` (Graph API) is untouched
-- Switch scheduler imports back
-- Use iOS Shortcut fallback for calendar + email data
+- Existing `outlook.py` (Graph API) is untouched
+- Remove `outlook_ews.py` imports from scheduler
+- iOS Shortcut continues to work independently
+- Remove `unread_emails` from summary response if unwanted
