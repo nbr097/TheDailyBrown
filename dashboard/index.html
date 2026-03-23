@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morning Briefing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="/dashboard/css/glass.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center px-4">
+        <div class="glass-card p-8 w-full max-w-sm text-center space-y-6">
+            <div>
+                <i class="ph ph-sun-horizon text-5xl text-amber-400"></i>
+                <h1 class="text-2xl font-bold mt-3">Morning Briefing</h1>
+                <p class="text-slate-400 text-sm mt-1">Authenticate to continue</p>
+            </div>
+
+            <div id="auth-status" class="text-sm text-slate-400"></div>
+
+            <button id="auth-btn" onclick="startAuth()" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition font-medium flex items-center justify-center gap-2">
+                <i class="ph ph-fingerprint text-xl"></i>
+                <span>Authenticate with Face ID</span>
+            </button>
+
+            <div id="register-section" class="hidden space-y-3">
+                <p class="text-sm text-slate-400">No credentials found. Register first:</p>
+                <button id="register-btn" onclick="startRegister()" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition font-medium flex items-center justify-center gap-2">
+                    <i class="ph ph-user-plus text-xl"></i>
+                    <span>Register Device</span>
+                </button>
+            </div>
+
+            <div id="auth-error" class="hidden text-red-400 text-sm"></div>
+        </div>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div id="dashboard-screen" class="hidden max-w-lg mx-auto px-4 py-6 space-y-4">
+
+        <!-- Header -->
+        <div class="fade-in">
+            <div class="flex items-center gap-3">
+                <i class="ph ph-sun-horizon text-3xl text-amber-400" id="greeting-icon"></i>
+                <div>
+                    <h1 class="text-xl font-bold" id="greeting-text">Good Morning, Nathan</h1>
+                    <p class="text-sm text-slate-400" id="header-date"></p>
+                </div>
+            </div>
+            <p class="text-xs text-slate-500 mt-1" id="header-location"></p>
+        </div>
+
+        <!-- Weather Card -->
+        <div id="weather-card" class="glass-card p-4 space-y-3 fade-in">
+            <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                <i class="ph ph-thermometer"></i>
+                <span>Weather</span>
+            </div>
+            <div id="weather-current" class="flex items-center justify-between">
+                <!-- Filled by JS -->
+            </div>
+            <div id="weather-details" class="flex gap-4 text-xs text-slate-400">
+                <!-- Filled by JS -->
+            </div>
+            <div id="weather-hourly" class="hourly-scroll mt-2">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+
+        <!-- Commute Card -->
+        <div id="commute-card" class="glass-card p-4 space-y-2 fade-in">
+            <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                <i class="ph ph-car"></i>
+                <span>Commute</span>
+            </div>
+            <div id="commute-content">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+
+        <!-- Calendar Card -->
+        <div id="calendar-card" class="glass-card p-4 space-y-3 fade-in">
+            <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                <i class="ph ph-calendar-blank"></i>
+                <span>Today's Schedule</span>
+            </div>
+            <div id="calendar-events" class="space-y-2">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+
+        <!-- Birthdays Card (conditional) -->
+        <div id="birthdays-card" class="glass-card p-4 space-y-2 fade-in hidden">
+            <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                <i class="ph ph-gift text-pink-400"></i>
+                <span>Birthdays Today</span>
+            </div>
+            <div id="birthdays-content">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+
+        <!-- News Section -->
+        <div id="news-section" class="glass-card p-4 space-y-3 fade-in">
+            <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                <i class="ph ph-newspaper"></i>
+                <span>News</span>
+            </div>
+            <div id="news-tabs" class="flex gap-2 overflow-x-auto pb-1">
+                <!-- Filled by JS -->
+            </div>
+            <div id="news-content" class="space-y-2">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+
+        <!-- Reminders & Flagged Emails -->
+        <div id="reminders-emails-card" class="glass-card p-4 space-y-4 fade-in">
+            <div>
+                <div class="flex items-center gap-2 text-slate-300 text-sm font-medium mb-2">
+                    <i class="ph ph-check-square"></i>
+                    <span>Reminders</span>
+                </div>
+                <div id="reminders-content" class="space-y-1">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+            <div class="border-t border-white/5 pt-3">
+                <div class="flex items-center gap-2 text-slate-300 text-sm font-medium mb-2">
+                    <i class="ph ph-flag text-red-400"></i>
+                    <span>Flagged Emails</span>
+                </div>
+                <div id="flagged-emails-content" class="space-y-1">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Section -->
+        <div id="admin-section" class="glass-card p-4 space-y-4 fade-in">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                    <i class="ph ph-heartbeat"></i>
+                    <span>System Health</span>
+                </div>
+                <button onclick="refreshHealth()" class="text-xs text-slate-400 hover:text-white transition flex items-center gap-1">
+                    <i class="ph ph-arrow-clockwise"></i>
+                    Refresh
+                </button>
+            </div>
+            <div id="health-banner" class="text-sm font-medium"></div>
+            <div id="health-grid" class="grid grid-cols-3 gap-2">
+                <!-- Filled by JS -->
+            </div>
+            <div class="border-t border-white/5 pt-3 flex items-center justify-between">
+                <button id="update-btn" onclick="triggerUpdate()" class="py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition text-sm font-medium flex items-center gap-2">
+                    <i class="ph ph-arrow-clockwise"></i>
+                    <span>Update System</span>
+                </button>
+                <span id="last-updated" class="text-xs text-slate-500"></span>
+            </div>
+            <div id="update-status" class="text-sm hidden"></div>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-state" class="hidden glass-card p-8 text-center space-y-3">
+            <i class="ph ph-wifi-slash text-4xl text-red-400"></i>
+            <p class="text-slate-300">Could not connect</p>
+            <p class="text-sm text-slate-500">Check your connection and try again.</p>
+            <button onclick="loadDashboard()" class="mt-2 py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition text-sm">
+                Retry
+            </button>
+        </div>
+
+    </div>
+
+    <script src="/dashboard/js/auth.js"></script>
+    <script src="/dashboard/js/app.js"></script>
+    <script src="/dashboard/js/admin.js"></script>
+</body>
+</html>

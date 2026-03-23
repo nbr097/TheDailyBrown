@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.database import init_db
 from src.auth.webauthn import router as webauthn_router
@@ -35,6 +38,15 @@ app.include_router(admin_router)
 app.include_router(data_router)
 app.include_router(summary_router)
 app.include_router(webauthn_router)
+
+
+dashboard_path = os.path.join(os.path.dirname(__file__), "..", "dashboard")
+app.mount("/dashboard", StaticFiles(directory=dashboard_path, html=True), name="dashboard")
+
+
+@app.get("/")
+async def root():
+    return RedirectResponse("/dashboard/")
 
 
 @app.get("/health")
