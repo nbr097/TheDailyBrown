@@ -2,8 +2,25 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import json as json_lib
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime
+
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        return json_lib.dumps({
+            "ts": datetime.utcnow().isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        })
+
+
+handler = logging.StreamHandler()
+handler.setFormatter(JSONFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
