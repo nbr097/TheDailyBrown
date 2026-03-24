@@ -20,6 +20,25 @@ function bufferToBase64url(buffer) {
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+// ---------- JWT helpers ----------
+
+function getStoredJwt() {
+    const token = localStorage.getItem('jwt');
+    if (!token) return null;
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.exp * 1000 > Date.now()) return token;
+        localStorage.removeItem('jwt');
+    } catch {
+        localStorage.removeItem('jwt');
+    }
+    return null;
+}
+
+function storeJwt(token) {
+    localStorage.setItem('jwt', token);
+}
+
 // ---------- DOM refs ----------
 
 const authScreen    = document.getElementById('auth-screen');
@@ -33,13 +52,27 @@ const authBtn       = document.getElementById('auth-btn');
 
 let authToken = null;
 
-// ---------- page load: attempt auth ----------
+// ---------- page load: check JWT or prompt Face ID ----------
 
 window.addEventListener('DOMContentLoaded', async () => {
-    // Cloudflare Access handles authentication
-    // Use the API bearer token for summary requests
-    authToken = '76cbca42da3b3c6fa90a09397c96deaa8f91e1ea856eca33e93b6b052855bd14';
-    onAuthSuccess();
+    const jwt = getStoredJwt();
+    if (jwt) {
+        authToken = jwt;
+        onAuthSuccess();
+        return;
+    }
+
+    try {
+        const res = await fetch('/auth/webauthn/authenticate-options');
+        if (res.ok) {
+            const opts = await res.json();
+            if (opts.allowCredentials && opts.allowCredentials.length > 0) {
+                return;
+            }
+        }
+    } catch { /* ignore */ }
+
+    registerSec.classList.remove('hidden');
 });
 
 // ---------- public entry points (called from HTML buttons) ----------
@@ -65,11 +98,6 @@ async function startRegister() {
     btn.innerHTML = '<div class="spinner"></div><span>Registering...</span>';
     try {
         await register();
-        // Registration proves identity — set flag and reload
-        // This avoids Safari auto-prompting a passkey sign-in after create()
-        sessionStorage.setItem('just_registered', 'true');
-        window.location.reload();
-        return;
     } catch (err) {
         showAuthError(err.message || 'Registration failed');
     } finally {
@@ -81,15 +109,11 @@ async function startRegister() {
 // ---------- WebAuthn authenticate ----------
 
 async function authenticate() {
-    // 1. Get options from server
     const optRes = await fetch('/auth/webauthn/authenticate-options');
     if (!optRes.ok) throw new Error('Could not get authentication options');
     const options = await optRes.json();
 
-    // Convert challenge
     options.challenge = base64urlToBuffer(options.challenge);
-
-    // Convert allowCredentials ids
     if (options.allowCredentials) {
         options.allowCredentials = options.allowCredentials.map(cred => ({
             ...cred,
@@ -97,10 +121,8 @@ async function authenticate() {
         }));
     }
 
-    // 2. Prompt biometric / security key
     const credential = await navigator.credentials.get({ publicKey: options });
 
-    // 3. Send assertion to server
     const body = {
         id: credential.id,
         rawId: bufferToBase64url(credential.rawId),
@@ -124,25 +146,23 @@ async function authenticate() {
     if (!verifyRes.ok) throw new Error('Authentication verification failed');
 
     const result = await verifyRes.json();
-    authToken = result.token || null;
+    if (result.token) {
+        storeJwt(result.token);
+        authToken = result.token;
+    }
 
-    // Success — switch to dashboard
     onAuthSuccess();
 }
 
 // ---------- WebAuthn register ----------
 
 async function register() {
-    // 1. Get registration options
     const optRes = await fetch('/auth/webauthn/register-options');
     if (!optRes.ok) throw new Error('Could not get registration options');
     const options = await optRes.json();
 
-    // Convert challenge and user.id
     options.challenge = base64urlToBuffer(options.challenge);
     options.user.id = base64urlToBuffer(options.user.id);
-
-    // Convert excludeCredentials ids if present
     if (options.excludeCredentials) {
         options.excludeCredentials = options.excludeCredentials.map(cred => ({
             ...cred,
@@ -150,10 +170,8 @@ async function register() {
         }));
     }
 
-    // 2. Create credential
     const credential = await navigator.credentials.create({ publicKey: options });
 
-    // 3. Send attestation to server
     const body = {
         id: credential.id,
         rawId: bufferToBase64url(credential.rawId),
@@ -171,7 +189,14 @@ async function register() {
     });
 
     if (!regRes.ok) throw new Error('Registration verification failed');
-    return regRes.json();
+
+    const result = await regRes.json();
+    if (result.token) {
+        storeJwt(result.token);
+        authToken = result.token;
+    }
+
+    onAuthSuccess();
 }
 
 // ---------- post-auth transition ----------
@@ -189,7 +214,14 @@ function showAuthError(msg) {
     authError.classList.remove('hidden');
 }
 
-// Re-authenticate for admin actions (returns true/false)
+function onSessionExpired() {
+    localStorage.removeItem('jwt');
+    authToken = null;
+    dashboard.classList.add('hidden');
+    authScreen.classList.remove('hidden');
+    showAuthError('Session expired. Please authenticate again.');
+}
+
 async function reauthenticate() {
     try {
         await authenticate();

@@ -4,7 +4,6 @@
 
 const CONFIG = {
     API_URL: '',           // Leave empty for same-origin
-    BEARER_TOKEN: '',      // Fill in your bearer token
 };
 
 // ---------- Weather icon mapping ----------
@@ -87,13 +86,15 @@ async function loadDashboard() {
         document.getElementById('header-location').textContent = locationName;
 
         const headers = {};
-        if (CONFIG.BEARER_TOKEN) {
-            headers['Authorization'] = `Bearer ${CONFIG.BEARER_TOKEN}`;
-        } else if (authToken) {
+        if (authToken) {
             headers['Authorization'] = `Bearer ${authToken}`;
         }
 
         const res = await fetch(`${CONFIG.API_URL}/summary?lat=${lat}&lon=${lon}`, { headers });
+        if (res.status === 401) {
+            onSessionExpired();
+            return;
+        }
         if (!res.ok) throw new Error(`API returned ${res.status}`);
         const data = await res.json();
 
