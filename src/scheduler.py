@@ -208,14 +208,15 @@ async def run_cache_job() -> None:
     logger.info("Running scheduled cache job")
     errors: list[str] = []
 
-    # --- Outlook calendar ---
+    # --- Outlook calendar (Graph API -- likely fails without token) ---
     try:
         from src.collectors.outlook import fetch_outlook_calendar
         outlook_events = await fetch_outlook_calendar()
         _update_system_status("microsoft_graph", True)
     except Exception as exc:
         logger.error("Outlook calendar fetch failed: %s", exc)
-        outlook_events = []
+        # Preserve existing work events from Power Automate push
+        outlook_events = [e for e in _cache["calendar"] if e.get("source") == "work"]
         errors.append(f"outlook_calendar: {exc}")
         _update_system_status("microsoft_graph", False, str(exc))
 
@@ -258,11 +259,12 @@ async def run_cache_job() -> None:
     try:
         from src.collectors.outlook import fetch_flagged_emails
         _cache["flagged_emails"] = await fetch_flagged_emails()
-        # microsoft_graph already updated by calendar fetch, update again
         _update_system_status("microsoft_graph", True)
     except Exception as exc:
         logger.error("Flagged emails fetch failed: %s", exc)
-        _cache["flagged_emails"] = []
+        # Preserve existing flagged emails from Power Automate push
+        if not _cache["flagged_emails"]:
+            _cache["flagged_emails"] = []
         errors.append(f"flagged_emails: {exc}")
         _update_system_status("microsoft_graph", False, str(exc))
 
