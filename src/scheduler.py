@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import time
 from datetime import datetime
 from typing import Any, Optional
 
@@ -85,6 +87,50 @@ def set_cached_outlook_data(
     _cache["calendar"] = personal + calendar
     _cache["flagged_emails"] = flagged_emails
     _cache["unread_emails"] = unread_emails
+    # Persist to SQLite so data survives container rebuilds
+    _persist_outlook_data(calendar, flagged_emails, unread_emails)
+
+
+def _persist_outlook_data(calendar, flagged_emails, unread_emails):
+    """Save Outlook data to SQLite."""
+    try:
+        from src.database import get_db
+        conn = get_db()
+        now = time.time()
+        for key, data in [("calendar", calendar), ("flagged_emails", flagged_emails), ("unread_emails", unread_emails)]:
+            conn.execute(
+                "INSERT OR REPLACE INTO outlook_cache (key, data, updated_at) VALUES (?, ?, ?)",
+                (key, json.dumps(data), now),
+            )
+        conn.commit()
+        conn.close()
+    except Exception as exc:
+        logger.error("Failed to persist Outlook data: %s", exc)
+
+
+def load_persisted_outlook_data():
+    """Load Outlook data from SQLite into cache. Called on startup."""
+    try:
+        from src.database import get_db
+        conn = get_db()
+        rows = conn.execute("SELECT key, data FROM outlook_cache").fetchall()
+        conn.close()
+        outlook_cal = []
+        for row in rows:
+            key, data = row["key"], json.loads(row["data"])
+            if key == "calendar":
+                outlook_cal = data
+            elif key == "flagged_emails":
+                _cache["flagged_emails"] = data
+            elif key == "unread_emails":
+                _cache["unread_emails"] = data
+        # Merge work calendar with any personal events already cached
+        if outlook_cal:
+            personal = [e for e in _cache["calendar"] if e.get("source") != "work"]
+            _cache["calendar"] = personal + outlook_cal
+        logger.info("Loaded persisted Outlook data from database")
+    except Exception as exc:
+        logger.error("Failed to load persisted Outlook data: %s", exc)
 
 
 def get_cached_reminders() -> list[dict]:

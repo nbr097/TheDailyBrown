@@ -30,6 +30,11 @@ def init_db() -> None:
             last_error TEXT,
             data TEXT
         );
+        CREATE TABLE IF NOT EXISTS outlook_cache (
+            key TEXT PRIMARY KEY,
+            data TEXT,
+            updated_at REAL
+        );
     """)
     conn.commit()
     conn.close()

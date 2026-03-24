@@ -33,7 +33,7 @@ from src.routes.admin import router as admin_router
 from src.routes.data import router as data_router
 from src.routes.summary import router as summary_router
 from src.routes.webhook import router as webhook_router
-from src.scheduler import create_scheduler, get_system_health, run_cache_job
+from src.scheduler import create_scheduler, get_system_health, run_cache_job, load_persisted_outlook_data
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,8 @@ async def lifespan(app: FastAPI):
     init_db()
     scheduler = create_scheduler()
     scheduler.start()
+    # Load persisted Outlook data immediately (before cache job)
+    load_persisted_outlook_data()
     # Non-blocking startup cache run
     asyncio.create_task(run_cache_job())
     logger.info("Scheduler started, initial cache job dispatched")
