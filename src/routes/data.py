@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, Request
 from src.auth.bearer import verify_bearer
 from src.collectors.reminders import RemindersPayload, store_reminders
@@ -71,10 +73,25 @@ async def post_outlook(request: Request, _=Depends(verify_bearer)):
     flagged = _transform_emails(raw.get("flagged_emails", []))
     unread = _transform_emails(raw.get("unread_emails", []))
 
+    # Filter unread emails to last 24 hours only
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    filtered_unread = []
+    for em in unread:
+        received = em.get("received", "")
+        if received:
+            try:
+                dt = datetime.fromisoformat(received.replace("Z", "+00:00"))
+                if dt >= cutoff:
+                    filtered_unread.append(em)
+            except (ValueError, TypeError):
+                filtered_unread.append(em)
+        else:
+            filtered_unread.append(em)
+
     set_cached_outlook_data(
         calendar=calendar,
         flagged_emails=flagged,
-        unread_emails=unread,
+        unread_emails=filtered_unread,
     )
     _update_system_status("microsoft_graph", True)
 
