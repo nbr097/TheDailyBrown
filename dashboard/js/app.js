@@ -334,7 +334,7 @@ function renderNewsArticles(key) {
     }
 
     el.innerHTML = articles.map(a => `
-        <a href="${a.url || '#'}" target="_blank" rel="noopener"
+        <a href="${a.link || a.url || '#'}" target="_blank" rel="noopener"
            class="block glass-card-hover rounded-lg p-3 space-y-1 transition cursor-pointer">
             <p class="text-sm font-medium leading-snug">${a.title || ''}</p>
             <p class="text-xs text-slate-400 line-clamp-2">${a.excerpt || a.description || ''}</p>
