@@ -73,25 +73,26 @@ async def post_outlook(request: Request, _=Depends(verify_bearer)):
     flagged = _transform_emails(raw.get("flagged_emails", []))
     unread = _transform_emails(raw.get("unread_emails", []))
 
-    # Filter unread emails to last 24 hours only
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-    filtered_unread = []
-    for em in unread:
-        received = em.get("received", "")
-        if received:
-            try:
-                dt = datetime.fromisoformat(received.replace("Z", "+00:00"))
-                if dt >= cutoff:
-                    filtered_unread.append(em)
-            except (ValueError, TypeError):
-                filtered_unread.append(em)
-        else:
-            filtered_unread.append(em)
+    def _filter_by_recency(emails, hours):
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        filtered = []
+        for em in emails:
+            received = em.get("received", "")
+            if received:
+                try:
+                    dt = datetime.fromisoformat(received.replace("Z", "+00:00"))
+                    if dt >= cutoff:
+                        filtered.append(em)
+                except (ValueError, TypeError):
+                    filtered.append(em)
+            else:
+                filtered.append(em)
+        return filtered
 
     set_cached_outlook_data(
         calendar=calendar,
-        flagged_emails=flagged,
-        unread_emails=filtered_unread,
+        flagged_emails=_filter_by_recency(flagged, 48),
+        unread_emails=_filter_by_recency(unread, 24),
     )
     _update_system_status("microsoft_graph", True)
 
