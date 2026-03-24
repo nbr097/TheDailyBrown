@@ -87,6 +87,7 @@ def set_cached_outlook_data(
     _cache["calendar"] = personal + calendar
     _cache["flagged_emails"] = flagged_emails
     _cache["unread_emails"] = unread_emails
+    _cache["outlook_last_push"] = datetime.now().isoformat()
     # Persist to SQLite so data survives container rebuilds
     _persist_outlook_data(calendar, flagged_emails, unread_emails)
 
@@ -113,17 +114,22 @@ def load_persisted_outlook_data():
     try:
         from src.database import get_db
         conn = get_db()
-        rows = conn.execute("SELECT key, data FROM outlook_cache").fetchall()
+        rows = conn.execute("SELECT key, data, updated_at FROM outlook_cache").fetchall()
         conn.close()
         outlook_cal = []
+        last_push = None
         for row in rows:
             key, data = row["key"], json.loads(row["data"])
+            if row["updated_at"] and (last_push is None or row["updated_at"] > last_push):
+                last_push = row["updated_at"]
             if key == "calendar":
                 outlook_cal = data
             elif key == "flagged_emails":
                 _cache["flagged_emails"] = data
             elif key == "unread_emails":
                 _cache["unread_emails"] = data
+        if last_push:
+            _cache["outlook_last_push"] = datetime.fromtimestamp(last_push).isoformat()
         # Merge work calendar with any personal events already cached
         if outlook_cal:
             personal = [e for e in _cache["calendar"] if e.get("source") != "work"]
@@ -139,7 +145,11 @@ def get_cached_reminders() -> list[dict]:
 
 
 def get_cache_status() -> dict:
-    return {"last_run": _cache["last_run"], "errors": _cache["errors"]}
+    return {
+        "last_run": _cache["last_run"],
+        "errors": _cache["errors"],
+        "outlook_last_push": _cache.get("outlook_last_push"),
+    }
 
 
 def get_system_health() -> dict[str, Any]:

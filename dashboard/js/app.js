@@ -106,6 +106,14 @@ async function loadDashboard() {
         renderFlaggedEmails(data.flagged_emails);
         renderUnreadEmails(data.unread_emails);
 
+        // Show Outlook last push timestamp
+        if (data.cache_status && data.cache_status.outlook_last_push) {
+            const pushDate = new Date(data.cache_status.outlook_last_push);
+            const timeStr = pushDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            const el = document.getElementById('outlook-last-push');
+            if (el) el.textContent = `Outlook synced ${timeStr}`;
+        }
+
         // Also load admin health
         loadHealth();
     } catch (err) {
