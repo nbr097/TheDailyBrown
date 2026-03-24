@@ -87,7 +87,8 @@ def set_cached_outlook_data(
     _cache["calendar"] = personal + calendar
     _cache["flagged_emails"] = flagged_emails
     _cache["unread_emails"] = unread_emails
-    _cache["outlook_last_push"] = datetime.now().isoformat()
+    from zoneinfo import ZoneInfo
+    _cache["outlook_last_push"] = datetime.now(ZoneInfo(src.config.settings.timezone)).isoformat()
     # Persist to SQLite so data survives container rebuilds
     _persist_outlook_data(calendar, flagged_emails, unread_emails)
 
