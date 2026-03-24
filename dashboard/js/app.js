@@ -228,7 +228,13 @@ function renderCalendar(events) {
         return;
     }
 
-    const sorted = [...events].sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+    const sorted = [...events].sort((a, b) => {
+        // Personal events first, then work
+        const srcA = (a.source || '') === 'personal' ? 0 : 1;
+        const srcB = (b.source || '') === 'personal' ? 0 : 1;
+        if (srcA !== srcB) return srcA - srcB;
+        return (a.start || '').localeCompare(b.start || '');
+    });
     el.innerHTML = sorted.map(ev => {
         const borderClass = (ev.source || '').toLowerCase() === 'work' ? 'source-work' : 'source-personal';
         const teamsLink = ev.teams_link
