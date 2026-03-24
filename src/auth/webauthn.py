@@ -24,6 +24,7 @@ from webauthn.helpers.structs import (
 )
 
 import src.config
+from src.auth.jwt import create_jwt
 from src.database import get_db
 
 router = APIRouter()
@@ -114,7 +115,7 @@ async def register(request: Request):
     conn.commit()
     conn.close()
 
-    return {"verified": True}
+    return {"verified": True, "token": create_jwt("nic")}
 
 
 @router.get("/auth/webauthn/authenticate-options")
@@ -170,7 +171,7 @@ async def authenticate(request: Request):
         )
     except Exception as exc:
         logger.error(f"WebAuthn auth failed: {exc}")
-        logger.error(f"  credential_id: {credential_id_hex}")
+        logger.error(f"  credential_id: {credential_id}")
         logger.error(f"  expected_origin: {_origin()}")
         logger.error(f"  expected_rp_id: {_rp_id()}")
         logger.error(f"  client_data origin: {client_data.get('origin', 'N/A')}")
@@ -180,9 +181,9 @@ async def authenticate(request: Request):
     conn = get_db()
     conn.execute(
         "UPDATE webauthn_credentials SET sign_count = ? WHERE id = ?",
-        (verification.new_sign_count, credential_id_hex),
+        (verification.new_sign_count, credential_id),
     )
     conn.commit()
     conn.close()
 
-    return {"verified": True}
+    return {"verified": True, "token": create_jwt("nic")}
