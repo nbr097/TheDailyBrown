@@ -46,10 +46,10 @@
     </div>
 
     <!-- Dashboard Screen -->
-    <div id="dashboard-screen" class="hidden max-w-lg mx-auto px-4 py-6 space-y-4">
+    <div id="dashboard-screen" class="hidden max-w-lg lg:max-w-5xl mx-auto px-4 py-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
 
         <!-- Header -->
-        <div class="fade-in">
+        <div class="fade-in lg:col-span-2">
             <div class="flex items-center gap-3">
                 <i class="ph ph-sun-horizon text-3xl text-amber-400" id="greeting-icon"></i>
                 <div>
@@ -111,7 +111,7 @@
         </div>
 
         <!-- News Section -->
-        <div id="news-section" class="glass-card p-4 space-y-3 fade-in">
+        <div id="news-section" class="glass-card p-4 space-y-3 fade-in lg:col-span-2">
             <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
                 <i class="ph ph-newspaper"></i>
                 <span>News</span>
@@ -159,7 +159,7 @@
         </div>
 
         <!-- Admin Section -->
-        <div id="admin-section" class="glass-card p-4 space-y-4 fade-in">
+        <div id="admin-section" class="glass-card p-4 space-y-4 fade-in lg:col-span-2">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
                     <i class="ph ph-heartbeat"></i>
@@ -185,7 +185,7 @@
         </div>
 
         <!-- Error State -->
-        <div id="error-state" class="hidden glass-card p-8 text-center space-y-3">
+        <div id="error-state" class="hidden glass-card p-8 text-center space-y-3 lg:col-span-2">
             <i class="ph ph-wifi-slash text-4xl text-red-400"></i>
             <p class="text-slate-300">Could not connect</p>
             <p class="text-sm text-slate-500">Check your connection and try again.</p>
