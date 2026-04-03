@@ -29,6 +29,7 @@ def test_invalid_token_rejected(client):
     assert resp.status_code == 401
 
 
-def test_no_auth_header_rejected(client):
+def test_no_auth_header_allowed(client):
+    """Dashboard access via Cloudflare Access — no bearer token needed."""
     resp = client.get("/summary?lat=-27.57&lon=151.95")
-    assert resp.status_code == 403
+    assert resp.status_code not in (401, 403)

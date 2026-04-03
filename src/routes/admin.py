@@ -4,7 +4,7 @@ import socket
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.auth.bearer import verify_bearer
+from src.auth.bearer import verify_bearer_optional
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ def signal_updater() -> bool:
 
 
 @router.post("/admin/update")
-async def trigger_update(_=Depends(verify_bearer)):
+async def trigger_update(_=Depends(verify_bearer_optional)):
     if signal_updater():
         return {"message": "Update initiated"}
     raise HTTPException(status_code=503, detail="Updater sidecar not available")

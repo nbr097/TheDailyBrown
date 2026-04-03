@@ -85,31 +85,13 @@ async function triggerUpdate() {
     const btn = document.getElementById('update-btn');
     const statusEl = document.getElementById('update-status');
 
-    // Require re-authentication via Face ID
     statusEl.classList.remove('hidden');
-    statusEl.innerHTML = '<span class="text-slate-400 flex items-center gap-2"><div class="spinner"></div> Authenticating...</span>';
-
-    const authed = await reauthenticate();
-    if (!authed) {
-        statusEl.innerHTML = '<span class="text-red-400 flex items-center gap-1"><i class="ph ph-x-circle"></i> Authentication required</span>';
-        return;
-    }
-
-    // Proceed with update
     statusEl.innerHTML = '<span class="text-slate-400 flex items-center gap-2"><div class="spinner"></div> Updating system...</span>';
     btn.disabled = true;
 
     try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (CONFIG.BEARER_TOKEN) {
-            headers['Authorization'] = `Bearer ${CONFIG.BEARER_TOKEN}`;
-        } else if (authToken) {
-            headers['Authorization'] = `Bearer ${authToken}`;
-        }
-
         const res = await fetch(`${CONFIG.API_URL}/admin/update`, {
             method: 'POST',
-            headers,
         });
 
         if (!res.ok) throw new Error(`Update returned ${res.status}`);

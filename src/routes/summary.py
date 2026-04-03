@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, Depends, Query
 
-from src.auth.bearer import verify_bearer
+from src.auth.bearer import verify_bearer_optional
 from src.cache import location_cache, TTLCache
 from src.collectors.weather import fetch_weather
 from src.collectors.commute import fetch_commute
@@ -28,7 +28,7 @@ router = APIRouter()
 async def summary(
     lat: float = Query(...),
     lon: float = Query(...),
-    _=Depends(verify_bearer),
+    _=Depends(verify_bearer_optional),
 ):
     # --- Weather (dynamic with TTL cache) ---
     weather_key = TTLCache.coord_key("weather", lat, lon)
