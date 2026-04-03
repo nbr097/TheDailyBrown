@@ -55,8 +55,8 @@
                     <p class="text-sm text-slate-400" id="header-date"></p>
                 </div>
                 <!-- Avatar + Popover -->
-                <div class="relative">
-                    <div id="avatar-btn" class="avatar bg-indigo-600 hover:bg-indigo-500 text-white" onclick="togglePopover()">NB</div>
+                <div class="relative" style="z-index: 50">
+                    <div id="avatar-btn" class="avatar bg-indigo-600 hover:bg-indigo-500 text-white" onclick="togglePopover(event)">NB</div>
                     <div id="avatar-popover" class="popover">
                         <a href="/dashboard/admin.html" class="popover-item">
                             <i class="ph ph-devices"></i>

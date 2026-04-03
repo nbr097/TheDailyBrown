@@ -420,7 +420,8 @@ function renderFlaggedEmails(emails) {
 
 // ---------- Avatar popover ----------
 
-function togglePopover() {
+function togglePopover(event) {
+    event.stopPropagation();
     const popover = document.getElementById('avatar-popover');
     popover.classList.toggle('open');
 }
