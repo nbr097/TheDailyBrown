@@ -231,8 +231,6 @@ Tell the user these next steps are on their iPhone:
    - Charger disconnect trigger (primary)
    - 6:30am fallback trigger
    - 4:00am reminders push to API
-3. **Face ID Registration:** Open the dashboard URL in Safari, complete WebAuthn registration on first visit
-
 ---
 
 ## Project Architecture
@@ -247,7 +245,6 @@ TheDailyBrown/
 │   ├── scheduler.py          # APScheduler (4am cron) + system health
 │   ├── auth/
 │   │   ├── bearer.py         # Bearer token auth for API
-│   │   └── webauthn.py       # Face ID registration/authentication
 │   ├── collectors/
 │   │   ├── weather.py        # OpenWeatherMap One Call API
 │   │   ├── outlook.py        # Microsoft Graph (calendar + flagged emails)
@@ -281,8 +278,7 @@ TheDailyBrown/
 | `GET /summary?lat=X&lon=Y` | Bearer | Full morning briefing JSON |
 | `POST /data/reminders` | Bearer | iOS Shortcut pushes reminders |
 | `POST /admin/update` | Bearer | Trigger Docker self-update |
-| `GET /dashboard/` | WebAuthn | Glassmorphism web dashboard |
-| `GET /auth/webauthn/*` | None | Face ID registration/auth |
+| `GET /dashboard/` | Cloudflare Access | Glassmorphism web dashboard |
 | `POST /webhook/github` | HMAC (optional) | GitHub push auto-deploy trigger |
 
 ### Data Flow
@@ -292,7 +288,7 @@ TheDailyBrown/
 Phone wakes  →  Scriptable widget sends GPS coords to /summary
 Pi returns   →  Weather + commute (live), everything else (cached)
 Widget       →  Compact view + push notification
-Tap widget   →  Safari → Face ID → full dashboard
+Tap widget   →  Safari → Cloudflare Access → full dashboard
 ```
 
 ---
@@ -414,7 +410,6 @@ ls -la data/morning.db
 | `./manage.sh status` | Health check (all 9 systems) |
 | `./manage.sh logs` | Tail app container logs |
 | `./manage.sh restart` | Restart app container |
-| `./manage.sh reset-webauthn` | Clear Face ID credentials |
 | `docker compose up -d --build` | Rebuild and restart everything |
 | `docker compose down` | Stop all containers |
 | `docker compose ps` | List running containers |
