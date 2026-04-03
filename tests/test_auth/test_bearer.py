@@ -33,3 +33,24 @@ def test_no_auth_header_allowed(client):
     """Dashboard access via Cloudflare Access — no bearer token needed."""
     resp = client.get("/summary?lat=-27.57&lon=151.95")
     assert resp.status_code not in (401, 403)
+
+
+def test_jwt_accepted(client):
+    """JWT from Face ID auth should work."""
+    from src.auth.jwt import create_jwt
+    token = create_jwt("nic")
+    resp = client.get(
+        "/summary?lat=-27.57&lon=151.95",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code not in (401, 403)
+
+
+def test_expired_jwt_rejected(client):
+    from src.auth.jwt import create_jwt
+    token = create_jwt("nic", expires_hours=-1)
+    resp = client.get(
+        "/summary?lat=-27.57&lon=151.95",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 401
