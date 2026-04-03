@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Morning Briefing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="/dashboard/css/glass.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+
+    <div class="max-w-lg mx-auto px-4 py-6 space-y-4">
+
+        <!-- Header -->
+        <div class="fade-in">
+            <div class="flex items-center gap-3">
+                <a href="/dashboard/" class="text-slate-400 hover:text-white transition">
+                    <i class="ph ph-arrow-left text-xl"></i>
+                </a>
+                <h1 class="text-xl font-bold">Admin</h1>
+            </div>
+        </div>
+
+        <!-- Registered Devices -->
+        <div id="devices-section" class="glass-card p-4 space-y-3 fade-in">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                    <i class="ph ph-devices"></i>
+                    <span>Registered Devices</span>
+                </div>
+            </div>
+            <div id="devices-list" class="space-y-2">
+                <p class="text-xs text-slate-500">Loading...</p>
+            </div>
+            <div class="border-t border-white/5 pt-3">
+                <button id="register-device-btn" onclick="registerDevice()" class="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 transition text-sm font-medium flex items-center justify-center gap-2">
+                    <i class="ph ph-plus"></i>
+                    <span>Register This Device</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- System Health -->
+        <div id="health-section" class="glass-card p-4 space-y-4 fade-in">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                    <i class="ph ph-heartbeat"></i>
+                    <span>System Health</span>
+                </div>
+                <button onclick="refreshHealth()" class="text-xs text-slate-400 hover:text-white transition flex items-center gap-1">
+                    <i class="ph ph-arrow-clockwise"></i>
+                    Refresh
+                </button>
+            </div>
+            <div id="health-banner" class="text-sm font-medium"></div>
+            <div id="health-grid" class="grid grid-cols-3 gap-2"></div>
+            <div class="border-t border-white/5 pt-3 flex items-center justify-between">
+                <button id="update-btn" onclick="triggerUpdate()" class="py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition text-sm font-medium flex items-center gap-2">
+                    <i class="ph ph-arrow-clockwise"></i>
+                    <span>Update System</span>
+                </button>
+                <span id="last-updated" class="text-xs text-slate-500"></span>
+            </div>
+            <div id="update-status" class="text-sm hidden"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const CONFIG = { API_URL: '' };
+    </script>
+    <script src="/dashboard/js/admin.js"></script>
+    <script src="/dashboard/js/devices.js"></script>
+</body>
+</html>
