@@ -15,16 +15,60 @@
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
 
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center px-4">
+        <div class="glass-card p-8 w-full max-w-sm text-center space-y-6">
+            <div>
+                <i class="ph ph-sun-horizon text-5xl text-amber-400"></i>
+                <h1 class="text-2xl font-bold mt-3">Morning Briefing</h1>
+                <p class="text-slate-400 text-sm mt-1">Authenticate to continue</p>
+            </div>
+
+            <div id="auth-status" class="text-sm text-slate-400"></div>
+
+            <button id="auth-btn" onclick="startAuth()" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition font-medium flex items-center justify-center gap-2">
+                <i class="ph ph-fingerprint text-xl"></i>
+                <span>Authenticate with Face ID</span>
+            </button>
+
+            <div id="register-section" class="hidden space-y-3">
+                <p class="text-sm text-slate-400">No credentials found. Register first:</p>
+                <button id="register-btn" onclick="startRegister()" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition font-medium flex items-center justify-center gap-2">
+                    <i class="ph ph-user-plus text-xl"></i>
+                    <span>Register Device</span>
+                </button>
+            </div>
+
+            <div id="auth-error" class="hidden text-red-400 text-sm"></div>
+        </div>
+    </div>
+
     <!-- Dashboard Screen -->
-    <div id="dashboard-screen" class="max-w-lg lg:max-w-5xl mx-auto px-4 py-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+    <div id="dashboard-screen" class="hidden max-w-lg lg:max-w-5xl mx-auto px-4 py-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
 
         <!-- Header -->
         <div class="fade-in lg:col-span-2">
             <div class="flex items-center gap-3">
                 <i class="ph ph-sun-horizon text-3xl text-amber-400" id="greeting-icon"></i>
-                <div>
+                <div class="flex-1">
                     <h1 class="text-xl font-bold" id="greeting-text">Good Morning, Nic</h1>
                     <p class="text-sm text-slate-400" id="header-date"></p>
+                </div>
+                <!-- Avatar + Popover -->
+                <div class="relative">
+                    <div id="avatar-btn" class="avatar bg-indigo-600 hover:bg-indigo-500 text-white" onclick="togglePopover()">NB</div>
+                    <div id="avatar-popover" class="popover">
+                        <a href="/dashboard/admin.html" class="popover-item">
+                            <i class="ph ph-devices"></i>
+                            <span>Manage Devices</span>
+                        </a>
+                        <a href="/dashboard/admin.html#health" class="popover-item">
+                            <i class="ph ph-heartbeat"></i>
+                            <span>System Health</span>
+                        </a>
+                        <div class="popover-divider"></div>
+                        <div class="popover-item text-slate-500 cursor-default text-xs">v0.3.0</div>
+                    </div>
                 </div>
             </div>
             <p class="text-xs text-slate-500 mt-1" id="header-location"></p>
@@ -36,15 +80,9 @@
                 <i class="ph ph-thermometer"></i>
                 <span>Weather</span>
             </div>
-            <div id="weather-current" class="flex items-center justify-between">
-                <!-- Filled by JS -->
-            </div>
-            <div id="weather-details" class="flex gap-4 text-xs text-slate-400">
-                <!-- Filled by JS -->
-            </div>
-            <div id="weather-hourly" class="hourly-scroll mt-2">
-                <!-- Filled by JS -->
-            </div>
+            <div id="weather-current" class="flex items-center justify-between"></div>
+            <div id="weather-details" class="flex gap-4 text-xs text-slate-400"></div>
+            <div id="weather-hourly" class="hourly-scroll mt-2"></div>
         </div>
 
         <!-- Commute Card -->
@@ -53,9 +91,7 @@
                 <i class="ph ph-car"></i>
                 <span>Commute</span>
             </div>
-            <div id="commute-content">
-                <!-- Filled by JS -->
-            </div>
+            <div id="commute-content"></div>
         </div>
 
         <!-- Calendar Card -->
@@ -65,9 +101,7 @@
                 <span>Today's Schedule</span>
                 <span id="outlook-last-push" class="ml-auto text-xs text-slate-500"></span>
             </div>
-            <div id="calendar-events" class="space-y-2">
-                <!-- Filled by JS -->
-            </div>
+            <div id="calendar-events" class="space-y-2"></div>
         </div>
 
         <!-- Birthdays Card (conditional) -->
@@ -76,9 +110,7 @@
                 <i class="ph ph-gift text-pink-400"></i>
                 <span>Birthdays Today</span>
             </div>
-            <div id="birthdays-content">
-                <!-- Filled by JS -->
-            </div>
+            <div id="birthdays-content"></div>
         </div>
 
         <!-- News Section -->
@@ -87,12 +119,8 @@
                 <i class="ph ph-newspaper"></i>
                 <span>News</span>
             </div>
-            <div id="news-tabs" class="flex gap-2 overflow-x-auto pb-1">
-                <!-- Filled by JS -->
-            </div>
-            <div id="news-content" class="space-y-2">
-                <!-- Filled by JS -->
-            </div>
+            <div id="news-tabs" class="flex gap-2 overflow-x-auto pb-1"></div>
+            <div id="news-content" class="space-y-2"></div>
         </div>
 
         <!-- Reminders & Flagged Emails -->
@@ -102,18 +130,14 @@
                     <i class="ph ph-check-square"></i>
                     <span>Reminders</span>
                 </div>
-                <div id="reminders-content" class="space-y-1">
-                    <!-- Filled by JS -->
-                </div>
+                <div id="reminders-content" class="space-y-1"></div>
             </div>
             <div class="border-t border-white/5 pt-3">
                 <div class="flex items-center gap-2 text-slate-300 text-sm font-medium mb-2">
                     <i class="ph ph-flag text-red-400"></i>
                     <span>Flagged Emails</span>
                 </div>
-                <div id="flagged-emails-content" class="space-y-1">
-                    <!-- Filled by JS -->
-                </div>
+                <div id="flagged-emails-content" class="space-y-1"></div>
             </div>
         </div>
 
@@ -124,35 +148,7 @@
                 <span>Unread Emails (24h)</span>
                 <span id="unread-count-badge" class="ml-auto text-xs bg-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded-full"></span>
             </div>
-            <div id="unread-emails-content" class="space-y-1">
-                <!-- Filled by JS -->
-            </div>
-        </div>
-
-        <!-- Admin Section -->
-        <div id="admin-section" class="glass-card p-4 space-y-4 fade-in lg:col-span-2">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
-                    <i class="ph ph-heartbeat"></i>
-                    <span>System Health</span>
-                </div>
-                <button onclick="refreshHealth()" class="text-xs text-slate-400 hover:text-white transition flex items-center gap-1">
-                    <i class="ph ph-arrow-clockwise"></i>
-                    Refresh
-                </button>
-            </div>
-            <div id="health-banner" class="text-sm font-medium"></div>
-            <div id="health-grid" class="grid grid-cols-3 gap-2">
-                <!-- Filled by JS -->
-            </div>
-            <div class="border-t border-white/5 pt-3 flex items-center justify-between">
-                <button id="update-btn" onclick="triggerUpdate()" class="py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition text-sm font-medium flex items-center gap-2">
-                    <i class="ph ph-arrow-clockwise"></i>
-                    <span>Update System</span>
-                </button>
-                <span id="last-updated" class="text-xs text-slate-500"></span>
-            </div>
-            <div id="update-status" class="text-sm hidden"></div>
+            <div id="unread-emails-content" class="space-y-1"></div>
         </div>
 
         <!-- Error State -->
@@ -167,7 +163,7 @@
 
     </div>
 
+    <script src="/dashboard/js/auth.js"></script>
     <script src="/dashboard/js/app.js"></script>
-    <script src="/dashboard/js/admin.js"></script>
 </body>
 </html>
