@@ -28,7 +28,6 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.database import init_db
-from src.auth.webauthn import router as webauthn_router
 from src.routes.admin import router as admin_router
 from src.routes.data import router as data_router
 from src.routes.summary import router as summary_router
@@ -69,7 +68,6 @@ app.add_middleware(NoCacheMiddleware)
 app.include_router(admin_router)
 app.include_router(data_router)
 app.include_router(summary_router)
-app.include_router(webauthn_router)
 app.include_router(webhook_router)
 
 
