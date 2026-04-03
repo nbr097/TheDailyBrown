@@ -18,12 +18,6 @@ def init_db() -> None:
             refresh_token TEXT,
             expires_at REAL
         );
-        CREATE TABLE IF NOT EXISTS webauthn_credentials (
-            id TEXT PRIMARY KEY,
-            public_key BLOB,
-            sign_count INTEGER DEFAULT 0,
-            created_at REAL
-        );
         CREATE TABLE IF NOT EXISTS cache_status (
             source TEXT PRIMARY KEY,
             last_success REAL,
