@@ -81,7 +81,14 @@ async function loadDashboard() {
     hideError();
 
     try {
-        const { lat, lon } = await getPosition();
+        let lat, lon;
+        try {
+            ({ lat, lon } = await getPosition());
+        } catch {
+            // Geolocation denied or timed out — use default (Toowoomba)
+            lat = -27.57;
+            lon = 151.95;
+        }
         const locationName = await reverseGeocode(lat, lon);
         document.getElementById('header-location').textContent = locationName;
 
