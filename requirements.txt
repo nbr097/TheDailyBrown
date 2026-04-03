@@ -8,5 +8,7 @@ vobject==0.9.8
 msal==1.32.0
 python-dotenv==1.1.0
 pydantic-settings==2.8.1
+webauthn==2.5.0
+PyJWT==2.9.0
 pytest==8.3.5
 pytest-asyncio==0.25.3
