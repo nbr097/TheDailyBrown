@@ -85,16 +85,7 @@ async function loadDashboard() {
         const locationName = await reverseGeocode(lat, lon);
         document.getElementById('header-location').textContent = locationName;
 
-        const headers = {};
-        if (authToken) {
-            headers['Authorization'] = `Bearer ${authToken}`;
-        }
-
-        const res = await fetch(`${CONFIG.API_URL}/summary?lat=${lat}&lon=${lon}`, { headers });
-        if (res.status === 401) {
-            onSessionExpired();
-            return;
-        }
+        const res = await fetch(`${CONFIG.API_URL}/summary?lat=${lat}&lon=${lon}`);
         if (!res.ok) throw new Error(`API returned ${res.status}`);
         const data = await res.json();
 
@@ -411,3 +402,5 @@ function renderFlaggedEmails(emails) {
         </div>
     `).join('');
 }
+
+window.addEventListener('DOMContentLoaded', () => loadDashboard());

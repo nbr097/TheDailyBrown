@@ -15,38 +15,8 @@
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
 
-    <!-- Auth Screen -->
-    <div id="auth-screen" class="min-h-screen flex items-center justify-center px-4">
-        <div class="glass-card p-8 w-full max-w-sm text-center space-y-6">
-            <div>
-                <i class="ph ph-sun-horizon text-5xl text-amber-400"></i>
-                <h1 class="text-2xl font-bold mt-3">Morning Briefing</h1>
-                <p class="text-slate-400 text-sm mt-1">Authenticate to continue</p>
-            </div>
-
-            <div id="auth-status" class="text-sm text-slate-400"></div>
-
-            <button id="auth-btn" onclick="startAuth()" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition font-medium flex items-center justify-center gap-2">
-                <i class="ph ph-fingerprint text-xl"></i>
-                <span>Authenticate with Face ID</span>
-            </button>
-
-            <div id="register-section" class="hidden space-y-3">
-                <p class="text-sm text-slate-400">No credentials found. Register first:</p>
-                <button id="register-btn" onclick="startRegister()" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition font-medium flex items-center justify-center gap-2">
-                    <i class="ph ph-user-plus text-xl"></i>
-                    <span>Register Device</span>
-                </button>
-            </div>
-
-            <div id="auth-error" class="hidden text-red-400 text-sm"></div>
-
-            <p class="text-xs text-slate-600 mt-4">v0.2.1</p>
-        </div>
-    </div>
-
     <!-- Dashboard Screen -->
-    <div id="dashboard-screen" class="hidden max-w-lg lg:max-w-5xl mx-auto px-4 py-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+    <div id="dashboard-screen" class="max-w-lg lg:max-w-5xl mx-auto px-4 py-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
 
         <!-- Header -->
         <div class="fade-in lg:col-span-2">
@@ -197,7 +167,6 @@
 
     </div>
 
-    <script src="/dashboard/js/auth.js"></script>
     <script src="/dashboard/js/app.js"></script>
     <script src="/dashboard/js/admin.js"></script>
 </body>
