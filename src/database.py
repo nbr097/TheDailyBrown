@@ -29,6 +29,13 @@ def init_db() -> None:
             data TEXT,
             updated_at REAL
         );
+        CREATE TABLE IF NOT EXISTS webauthn_credentials (
+            id TEXT PRIMARY KEY,
+            public_key BLOB,
+            sign_count INTEGER DEFAULT 0,
+            device_name TEXT,
+            created_at REAL
+        );
     """)
     conn.commit()
     conn.close()

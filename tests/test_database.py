@@ -13,4 +13,5 @@ def test_init_db_creates_tables():
             table_names = [t["name"] for t in tables]
             assert "oauth_tokens" in table_names
             assert "cache_status" in table_names
+            assert "webauthn_credentials" in table_names
             conn.close()
