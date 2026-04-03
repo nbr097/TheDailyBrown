@@ -92,7 +92,16 @@ async function loadDashboard() {
         const locationName = await reverseGeocode(lat, lon);
         document.getElementById('header-location').textContent = locationName;
 
-        const res = await fetch(`${CONFIG.API_URL}/summary?lat=${lat}&lon=${lon}`);
+        const headers = {};
+        if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
+        const res = await fetch(`${CONFIG.API_URL}/summary?lat=${lat}&lon=${lon}`, { headers });
+        if (res.status === 401) {
+            onSessionExpired();
+            return;
+        }
         if (!res.ok) throw new Error(`API returned ${res.status}`);
         const data = await res.json();
 
@@ -113,8 +122,6 @@ async function loadDashboard() {
             if (el) el.textContent = `Outlook synced ${timeStr}`;
         }
 
-        // Also load admin health
-        loadHealth();
     } catch (err) {
         console.error('Dashboard load error:', err);
         showError();
@@ -141,7 +148,7 @@ function showError() {
     document.getElementById('error-state').classList.remove('hidden');
     // Hide data cards
     ['weather-card', 'commute-card', 'calendar-card', 'birthdays-card',
-     'news-section', 'reminders-emails-card', 'unread-emails-card', 'admin-section'].forEach(id => {
+     'news-section', 'reminders-emails-card', 'unread-emails-card'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
     });
 }
@@ -149,7 +156,7 @@ function showError() {
 function hideError() {
     document.getElementById('error-state').classList.add('hidden');
     ['weather-card', 'commute-card', 'calendar-card',
-     'news-section', 'reminders-emails-card', 'unread-emails-card', 'admin-section'].forEach(id => {
+     'news-section', 'reminders-emails-card', 'unread-emails-card'].forEach(id => {
         document.getElementById(id).classList.remove('hidden');
     });
 }
@@ -410,4 +417,18 @@ function renderFlaggedEmails(emails) {
     `).join('');
 }
 
-window.addEventListener('DOMContentLoaded', () => loadDashboard());
+
+// ---------- Avatar popover ----------
+
+function togglePopover() {
+    const popover = document.getElementById('avatar-popover');
+    popover.classList.toggle('open');
+}
+
+document.addEventListener('click', (e) => {
+    const popover = document.getElementById('avatar-popover');
+    const avatar = document.getElementById('avatar-btn');
+    if (popover && avatar && !avatar.contains(e.target) && !popover.contains(e.target)) {
+        popover.classList.remove('open');
+    }
+});
