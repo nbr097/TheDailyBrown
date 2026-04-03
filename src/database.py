@@ -38,4 +38,14 @@ def init_db() -> None:
         );
     """)
     conn.commit()
+    # Migrations: add columns that may be missing from older DB versions
+    _migrate(conn)
     conn.close()
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Apply additive schema migrations safely."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(webauthn_credentials)")}
+    if "device_name" not in existing:
+        conn.execute("ALTER TABLE webauthn_credentials ADD COLUMN device_name TEXT")
+        conn.commit()
