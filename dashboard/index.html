@@ -8,6 +8,9 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="/dashboard/css/glass.css">
     <style>
+        html {
+            background-color: #0f172a;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
@@ -56,7 +59,7 @@
                 </div>
                 <!-- Avatar + Popover -->
                 <div class="relative" style="z-index: 50">
-                    <button id="avatar-btn" class="avatar bg-indigo-600 hover:bg-indigo-500 text-white" onclick="togglePopover(event)">NB</button>
+                    <button id="avatar-btn" type="button" class="avatar bg-indigo-600 hover:bg-indigo-500 text-white">NB</button>
                     <div id="avatar-popover" class="popover">
                         <a href="/dashboard/admin.html" class="popover-item">
                             <i class="ph ph-devices"></i>

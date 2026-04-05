@@ -402,16 +402,17 @@ function renderUnreadEmails(emails) {
 
 // ---------- Avatar popover ----------
 
-function togglePopover(event) {
-    event.stopPropagation();
-    const popover = document.getElementById('avatar-popover');
-    popover.classList.toggle('open');
-}
-
-document.addEventListener('click', (e) => {
-    const popover = document.getElementById('avatar-popover');
+(function() {
     const avatar = document.getElementById('avatar-btn');
-    if (popover && avatar && !avatar.contains(e.target) && !popover.contains(e.target)) {
+    const popover = document.getElementById('avatar-popover');
+    if (!avatar || !popover) return;
+
+    avatar.addEventListener('click', function(e) {
+        e.stopPropagation();
+        popover.classList.toggle('open');
+    });
+
+    document.addEventListener('click', function() {
         popover.classList.remove('open');
-    }
-});
+    });
+})();
