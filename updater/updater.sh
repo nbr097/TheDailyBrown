@@ -1,6 +1,6 @@
 #!/bin/bash
 SOCKET="/tmp/updater.sock"
-rm -f "$SOCKET"
+rm -rf "$SOCKET"
 echo "Updater sidecar listening on $SOCKET"
 while true; do
     socat UNIX-LISTEN:"$SOCKET",fork EXEC:"bash -c '
