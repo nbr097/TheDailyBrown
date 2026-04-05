@@ -56,7 +56,7 @@
                 </div>
                 <!-- Avatar + Popover -->
                 <div class="relative" style="z-index: 50">
-                    <div id="avatar-btn" class="avatar bg-indigo-600 hover:bg-indigo-500 text-white" onclick="togglePopover(event)">NB</div>
+                    <button id="avatar-btn" class="avatar bg-indigo-600 hover:bg-indigo-500 text-white" onclick="togglePopover(event)">NB</button>
                     <div id="avatar-popover" class="popover">
                         <a href="/dashboard/admin.html" class="popover-item">
                             <i class="ph ph-devices"></i>
@@ -123,22 +123,13 @@
             <div id="news-content" class="space-y-2"></div>
         </div>
 
-        <!-- Reminders & Flagged Emails -->
-        <div id="reminders-emails-card" class="glass-card p-4 space-y-4 fade-in">
-            <div>
-                <div class="flex items-center gap-2 text-slate-300 text-sm font-medium mb-2">
-                    <i class="ph ph-check-square"></i>
-                    <span>Reminders</span>
-                </div>
-                <div id="reminders-content" class="space-y-1"></div>
+        <!-- Reminders -->
+        <div id="reminders-card" class="glass-card p-4 space-y-2 fade-in">
+            <div class="flex items-center gap-2 text-slate-300 text-sm font-medium mb-2">
+                <i class="ph ph-check-square"></i>
+                <span>Reminders</span>
             </div>
-            <div class="border-t border-white/5 pt-3">
-                <div class="flex items-center gap-2 text-slate-300 text-sm font-medium mb-2">
-                    <i class="ph ph-flag text-red-400"></i>
-                    <span>Flagged Emails</span>
-                </div>
-                <div id="flagged-emails-content" class="space-y-1"></div>
-            </div>
+            <div id="reminders-content" class="space-y-1"></div>
         </div>
 
         <!-- Unread Emails Card -->

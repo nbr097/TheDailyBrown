@@ -111,7 +111,6 @@ async function loadDashboard() {
         renderBirthdays(data.birthdays);
         renderNews(data.news);
         renderReminders(data.reminders);
-        renderFlaggedEmails(data.flagged_emails);
         renderUnreadEmails(data.unread_emails);
 
         // Show Outlook last push timestamp
@@ -148,7 +147,7 @@ function showError() {
     document.getElementById('error-state').classList.remove('hidden');
     // Hide data cards
     ['weather-card', 'commute-card', 'calendar-card', 'birthdays-card',
-     'news-section', 'reminders-emails-card', 'unread-emails-card'].forEach(id => {
+     'news-section', 'reminders-card', 'unread-emails-card'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
     });
 }
@@ -156,7 +155,7 @@ function showError() {
 function hideError() {
     document.getElementById('error-state').classList.add('hidden');
     ['weather-card', 'commute-card', 'calendar-card',
-     'news-section', 'reminders-emails-card', 'unread-emails-card'].forEach(id => {
+     'news-section', 'reminders-card', 'unread-emails-card'].forEach(id => {
         document.getElementById(id).classList.remove('hidden');
     });
 }
@@ -398,24 +397,7 @@ function renderUnreadEmails(emails) {
     }
 }
 
-// ---------- Render: Flagged Emails ----------
 
-function renderFlaggedEmails(emails) {
-    const el = document.getElementById('flagged-emails-content');
-    if (!emails || !emails.length) {
-        el.innerHTML = '<p class="text-xs text-slate-500">No flagged emails</p>';
-        return;
-    }
-    el.innerHTML = emails.map(e => `
-        <div class="flex items-start gap-2 text-sm">
-            <i class="ph ph-flag text-red-400 mt-0.5"></i>
-            <div>
-                <p class="text-slate-300">${e.subject || e.title || ''}</p>
-                <p class="text-xs text-slate-500">${e.from_name || ''}</p>
-            </div>
-        </div>
-    `).join('');
-}
 
 
 // ---------- Avatar popover ----------
