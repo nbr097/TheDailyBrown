@@ -13,8 +13,8 @@ while true; do
 
         cd "$PROJECT_DIR"
         git pull origin 2>&1 >> "$LOG_FILE"
-        docker compose build --no-cache morning-briefing 2>&1 >> "$LOG_FILE"
-        docker compose up -d --force-recreate morning-briefing 2>&1 >> "$LOG_FILE"
+        docker compose pull morning-briefing 2>&1 >> "$LOG_FILE"
+        docker compose up -d morning-briefing 2>&1 >> "$LOG_FILE"
 
         echo "$(date) — Deploy complete" >> "$LOG_FILE"
     fi
