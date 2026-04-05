@@ -158,7 +158,7 @@ def get_system_health() -> dict[str, Any]:
 
     # Check docker updater socket availability (communicates via unix socket)
     import os
-    updater_sock = os.path.exists("/tmp/updater.sock")
+    updater_sock = os.path.exists("/run/updater/updater.sock")
     if health["docker_updater"]["status"] == "unknown":
         health["docker_updater"] = {
             "status": "ok" if updater_sock else "unavailable",
