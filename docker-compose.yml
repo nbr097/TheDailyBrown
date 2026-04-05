@@ -3,6 +3,7 @@ volumes:
 
 services:
   morning-briefing:
+    image: ghcr.io/nbr097/thedailybrown:latest
     build: .
     container_name: morning-briefing
     restart: unless-stopped
