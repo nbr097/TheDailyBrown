@@ -1,3 +1,6 @@
+volumes:
+  updater-socket:
+
 services:
   morning-briefing:
     build: .
@@ -8,7 +11,7 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
-      - /tmp/updater.sock:/tmp/updater.sock
+      - updater-socket:/run/updater
     logging:
       driver: json-file
       options:
@@ -21,7 +24,7 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /tmp/updater.sock:/tmp/updater.sock
+      - updater-socket:/run/updater
       - ./docker-compose.yml:/compose/docker-compose.yml:ro
     logging:
       driver: json-file

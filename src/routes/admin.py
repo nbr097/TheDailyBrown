@@ -8,7 +8,7 @@ from src.auth.bearer import verify_bearer_optional
 
 router = APIRouter()
 
-UPDATER_SOCKET = "/tmp/updater.sock"
+UPDATER_SOCKET = "/run/updater/updater.sock"
 
 
 def signal_updater() -> bool:

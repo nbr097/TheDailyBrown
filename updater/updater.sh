@@ -1,5 +1,5 @@
 #!/bin/bash
-SOCKET="/tmp/updater.sock"
+SOCKET="/run/updater/updater.sock"
 rm -rf "$SOCKET"
 echo "Updater sidecar listening on $SOCKET"
 while true; do
