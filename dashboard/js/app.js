@@ -400,19 +400,3 @@ function renderUnreadEmails(emails) {
 
 
 
-// ---------- Avatar popover ----------
-
-(function() {
-    const avatar = document.getElementById('avatar-btn');
-    const popover = document.getElementById('avatar-popover');
-    if (!avatar || !popover) return;
-
-    avatar.addEventListener('click', function(e) {
-        e.stopPropagation();
-        popover.classList.toggle('open');
-    });
-
-    document.addEventListener('click', function() {
-        popover.classList.remove('open');
-    });
-})();
